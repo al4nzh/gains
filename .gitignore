@@ -1,0 +1,22 @@
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Binaries
+/bin/
+/tmp/
+*.exe
+*.test
+*.out
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/

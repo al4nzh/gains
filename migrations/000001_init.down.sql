@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS ai_actions;
+DROP TABLE IF EXISTS ai_insights;
+DROP TABLE IF EXISTS recovery_checkins;
+DROP TABLE IF EXISTS workout_sets;
+DROP TABLE IF EXISTS workouts;
+DROP TABLE IF EXISTS routine_exercises;
+DROP TABLE IF EXISTS routines;
+DROP TABLE IF EXISTS exercises;
+DROP TABLE IF EXISTS profiles;
+DROP TABLE IF EXISTS users;
