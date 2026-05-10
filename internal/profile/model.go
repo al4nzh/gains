@@ -24,6 +24,7 @@ type Profile struct {
 	FitnessGoal        *string   `json:"fitness_goal,omitempty"        db:"fitness_goal"`
 	TrainingExperience *string   `json:"training_experience,omitempty" db:"training_experience"`
 	PreferredSplit     *string   `json:"preferred_split,omitempty"     db:"preferred_split"`
+	InjuryNotes        *string   `json:"injury_notes,omitempty"          db:"injury_notes"`
 	CreatedAt          time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at" db:"updated_at"`
 }
