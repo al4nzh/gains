@@ -20,22 +20,27 @@ func NewHandler(repo *Repository) *Handler {
 	return &Handler{repo: repo}
 }
 
-func (h *Handler) RegisterRoutes(r *gin.Engine, requireAuth gin.HandlerFunc) {
-	g := r.Group("/profile", requireAuth)
+func (h *Handler) RegisterRoutes(r *gin.Engine, requireAuth gin.HandlerFunc, limiter gin.HandlerFunc) {
+	g := r.Group("/profile", requireAuth, limiter)
 	g.GET("", h.get)
 	g.PUT("", h.put)
 }
 
 type apiProfile struct {
-	UserID         string     `json:"user_id"`
-	Age            *int       `json:"age,omitempty"`
-	HeightCm       *float64   `json:"height_cm,omitempty"`
-	WeightKg       *float64   `json:"weight_kg,omitempty"`
-	Goal           *string    `json:"goal,omitempty"`
-	Experience     *string    `json:"experience,omitempty"`
-	PreferredSplit *string    `json:"preferred_split,omitempty"`
-	InjuryNotes    *string    `json:"injury_notes,omitempty"`
-	UpdatedAt      *time.Time `json:"updated_at,omitempty"`
+	UserID                string     `json:"user_id"`
+	Age                   *int       `json:"age,omitempty"`
+	HeightCm              *float64   `json:"height_cm,omitempty"`
+	WeightKg              *float64   `json:"weight_kg,omitempty"`
+	Goal                  *string    `json:"goal,omitempty"`
+	Experience            *string    `json:"experience,omitempty"`
+	PreferredSplit        *string    `json:"preferred_split,omitempty"`
+	InjuryNotes           *string    `json:"injury_notes,omitempty"`
+	ActivityLevel         *string    `json:"activity_level,omitempty"`
+	StrengthElo           *int       `json:"strength_elo,omitempty"`
+	StrengthEloRank       *string    `json:"strength_elo_rank,omitempty"`
+	StrengthEloChange30d  *int       `json:"strength_elo_change_30d,omitempty"`
+	LastStrengthEloUpdate *time.Time `json:"last_strength_elo_update,omitempty"`
+	UpdatedAt             *time.Time `json:"updated_at,omitempty"`
 }
 
 // putBody uses API field names from the product spec (goal, experience, etc.).
@@ -47,6 +52,7 @@ type putBody struct {
 	Experience     *string  `json:"experience"`
 	PreferredSplit *string  `json:"preferred_split"`
 	InjuryNotes    *string  `json:"injury_notes"`
+	ActivityLevel  *string  `json:"activity_level"`
 }
 
 func (h *Handler) get(c *gin.Context) {
@@ -139,6 +145,14 @@ func mergePut(cur *Profile, b *putBody) *Profile {
 			out.InjuryNotes = &n
 		}
 	}
+	if b.ActivityLevel != nil {
+		if strings.TrimSpace(*b.ActivityLevel) == "" {
+			out.ActivityLevel = nil
+		} else {
+			a := strings.TrimSpace(*b.ActivityLevel)
+			out.ActivityLevel = &a
+		}
+	}
 	return &out
 }
 
@@ -174,6 +188,9 @@ func validateProfile(p *Profile) error {
 	if p.InjuryNotes != nil && utf8.RuneCountInString(*p.InjuryNotes) > 2000 {
 		return errors.New("injury_notes must be at most 2000 characters")
 	}
+	if p.ActivityLevel != nil && !isAllowedActivityLevel(*p.ActivityLevel) {
+		return errors.New("invalid activity_level: use sedentary, light, moderate, active, or very_active")
+	}
 	return nil
 }
 
@@ -195,16 +212,30 @@ func isAllowedExperience(e string) bool {
 	}
 }
 
+func isAllowedActivityLevel(a string) bool {
+	switch a {
+	case ActivitySedentary, ActivityLight, ActivityModerate, ActivityActive, ActivityVeryActive:
+		return true
+	default:
+		return false
+	}
+}
+
 func toAPI(p *Profile) apiProfile {
 	out := apiProfile{
-		UserID:         p.UserID,
-		Age:            p.Age,
-		HeightCm:       p.HeightCm,
-		WeightKg:       p.WeightKg,
-		Goal:           p.FitnessGoal,
-		Experience:     p.TrainingExperience,
-		PreferredSplit: p.PreferredSplit,
-		InjuryNotes:    p.InjuryNotes,
+		UserID:                p.UserID,
+		Age:                   p.Age,
+		HeightCm:              p.HeightCm,
+		WeightKg:              p.WeightKg,
+		Goal:                  p.FitnessGoal,
+		Experience:            p.TrainingExperience,
+		PreferredSplit:        p.PreferredSplit,
+		InjuryNotes:           p.InjuryNotes,
+		ActivityLevel:         p.ActivityLevel,
+		StrengthElo:           p.StrengthElo,
+		StrengthEloRank:       p.StrengthEloRank,
+		StrengthEloChange30d:  p.StrengthEloChange30d,
+		LastStrengthEloUpdate: p.LastStrengthEloUpdate,
 	}
 	if !p.UpdatedAt.IsZero() {
 		t := p.UpdatedAt

@@ -1,0 +1,6 @@
+ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS strength_elo INT NOT NULL DEFAULT 1000,
+    ADD COLUMN IF NOT EXISTS strength_elo_rank TEXT,
+    ADD COLUMN IF NOT EXISTS strength_elo_change_30d INT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS last_strength_elo_update TIMESTAMPTZ;
+

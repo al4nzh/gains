@@ -12,12 +12,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"gainsai/internal/ai"
+	"gainsai/internal/analytics"
 	"gainsai/internal/auth"
 	"gainsai/internal/config"
 	"gainsai/internal/db"
+	"gainsai/internal/exercise"
 	"gainsai/internal/middleware"
 	"gainsai/internal/profile"
+	"gainsai/internal/recovery"
+	"gainsai/internal/routine"
 	"gainsai/internal/user"
+	"gainsai/internal/workout"
 )
 
 func main() {
@@ -47,6 +53,12 @@ func main() {
 	authHandler := auth.NewHandler(authService, userRepo)
 
 	authLimiter := middleware.NewIPRateLimiter(cfg.AuthRateLimitRPS, cfg.AuthRateLimitBurst)
+	profileLimiter := middleware.NewIPRateLimiter(cfg.ProfileRateLimitRPS, cfg.ProfileRateLimitBurst)
+	exerciseLimiter := middleware.NewIPRateLimiter(cfg.ExerciseRateLimitRPS, cfg.ExerciseRateLimitBurst)
+	routineLimiter := middleware.NewIPRateLimiter(cfg.RoutineRateLimitRPS, cfg.RoutineRateLimitBurst)
+	workoutLimiter := middleware.NewIPRateLimiter(cfg.WorkoutRateLimitRPS, cfg.WorkoutRateLimitBurst)
+	recoveryLimiter := middleware.NewIPRateLimiter(cfg.RecoveryRateLimitRPS, cfg.RecoveryRateLimitBurst)
+	analyticsLimiter := middleware.NewIPRateLimiter(cfg.AnalyticsRateLimitRPS, cfg.AnalyticsRateLimitBurst)
 
 	r := gin.New()
 	r.Use(gin.Recovery(), gin.Logger(), middleware.RequestID())
@@ -72,7 +84,36 @@ func main() {
 
 	profileRepo := profile.NewRepository(pool)
 	profileHandler := profile.NewHandler(profileRepo)
-	profileHandler.RegisterRoutes(r, requireAuth)
+	profileHandler.RegisterRoutes(r, requireAuth, profileLimiter.Middleware())
+
+	exerciseRepo := exercise.NewRepository(pool)
+	exerciseHandler := exercise.NewHandler(exerciseRepo)
+	exerciseHandler.RegisterRoutes(r, requireAuth, exerciseLimiter.Middleware())
+
+	routineRepo := routine.NewRepository(pool)
+	routineSvc := routine.NewService(routineRepo)
+	routineHandler := routine.NewHandler(routineSvc)
+	routineHandler.RegisterRoutes(r, requireAuth, routineLimiter.Middleware())
+
+	workoutRepo := workout.NewRepository(pool)
+	workoutSvc := workout.NewService(pool, workoutRepo, profileRepo, exerciseRepo)
+	workoutHandler := workout.NewHandler(workoutSvc)
+	workoutHandler.RegisterRoutes(r, requireAuth, workoutLimiter.Middleware())
+
+	recoveryRepo := recovery.NewRepository(pool)
+	recoveryHandler := recovery.NewHandler(recoveryRepo)
+	recoveryHandler.RegisterRoutes(r, requireAuth, recoveryLimiter.Middleware())
+
+	aiRepo := ai.NewRepository(pool)
+	analyticsRepo := analytics.NewRepository(pool)
+	analyticsSvc := analytics.NewService(analyticsRepo, recoveryRepo, profileRepo, routineRepo, workoutRepo, aiRepo)
+	analyticsHandler := analytics.NewHandler(analyticsSvc)
+	analyticsHandler.RegisterRoutes(r, requireAuth, analyticsLimiter.Middleware())
+
+	aiLimiter := middleware.NewIPRateLimiter(cfg.AIRateLimitRPS, cfg.AIRateLimitBurst)
+	aiSvc := ai.NewService(aiRepo, workoutRepo, cfg, analyticsSvc)
+	aiHandler := ai.NewHandler(aiSvc)
+	aiHandler.RegisterRoutes(r, requireAuth, aiLimiter.Middleware())
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

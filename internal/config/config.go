@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -20,6 +21,29 @@ type Config struct {
 
 	AuthRateLimitRPS   float64
 	AuthRateLimitBurst int
+
+	ProfileRateLimitRPS   float64
+	ProfileRateLimitBurst int
+
+	ExerciseRateLimitRPS   float64
+	ExerciseRateLimitBurst int
+
+	RoutineRateLimitRPS   float64
+	RoutineRateLimitBurst int
+
+	WorkoutRateLimitRPS   float64
+	WorkoutRateLimitBurst int
+
+	RecoveryRateLimitRPS   float64
+	RecoveryRateLimitBurst int
+
+	AnalyticsRateLimitRPS   float64
+	AnalyticsRateLimitBurst int
+
+	OpenAIAPIKey     string
+	OpenAIModel      string
+	AIRateLimitRPS   float64
+	AIRateLimitBurst int
 }
 
 func Load() (*Config, error) {
@@ -52,6 +76,29 @@ func Load() (*Config, error) {
 
 	cfg.AuthRateLimitRPS = parseFloat("AUTH_RATE_LIMIT_RPS", 5)
 	cfg.AuthRateLimitBurst = parseInt("AUTH_RATE_LIMIT_BURST", 10)
+
+	cfg.ProfileRateLimitRPS = parseFloat("PROFILE_RATE_LIMIT_RPS", 10)
+	cfg.ProfileRateLimitBurst = parseInt("PROFILE_RATE_LIMIT_BURST", 20)
+
+	cfg.ExerciseRateLimitRPS = parseFloat("EXERCISE_RATE_LIMIT_RPS", 20)
+	cfg.ExerciseRateLimitBurst = parseInt("EXERCISE_RATE_LIMIT_BURST", 40)
+
+	cfg.RoutineRateLimitRPS = parseFloat("ROUTINE_RATE_LIMIT_RPS", 15)
+	cfg.RoutineRateLimitBurst = parseInt("ROUTINE_RATE_LIMIT_BURST", 30)
+
+	cfg.WorkoutRateLimitRPS = parseFloat("WORKOUT_RATE_LIMIT_RPS", 25)
+	cfg.WorkoutRateLimitBurst = parseInt("WORKOUT_RATE_LIMIT_BURST", 50)
+
+	cfg.RecoveryRateLimitRPS = parseFloat("RECOVERY_RATE_LIMIT_RPS", 15)
+	cfg.RecoveryRateLimitBurst = parseInt("RECOVERY_RATE_LIMIT_BURST", 30)
+
+	cfg.AnalyticsRateLimitRPS = parseFloat("ANALYTICS_RATE_LIMIT_RPS", 10)
+	cfg.AnalyticsRateLimitBurst = parseInt("ANALYTICS_RATE_LIMIT_BURST", 20)
+
+	cfg.OpenAIAPIKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+	cfg.OpenAIModel = getEnv("OPENAI_MODEL", "gpt-4o-mini")
+	cfg.AIRateLimitRPS = parseFloat("AI_RATE_LIMIT_RPS", 3)
+	cfg.AIRateLimitBurst = parseInt("AI_RATE_LIMIT_BURST", 6)
 
 	return cfg, nil
 }
