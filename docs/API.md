@@ -24,6 +24,7 @@ HTTP API for the Gains backend (Gin). Base URL defaults to `http://localhost:{PO
 | `/recovery-checkins` | `RECOVERY_RATE_LIMIT_RPS`, `RECOVERY_RATE_LIMIT_BURST` | 15, 30 |
 | `/home`, `/analytics` | `ANALYTICS_RATE_LIMIT_RPS`, `ANALYTICS_RATE_LIMIT_BURST` | 10, 20 |
 | `/ai/*` | `AI_RATE_LIMIT_RPS`, `AI_RATE_LIMIT_BURST` | 3, 6 |
+| `/physique-scans` | `PHYSIQUE_RATE_LIMIT_RPS`, `PHYSIQUE_RATE_LIMIT_BURST` | 2, 4 |
 
 ### Server environment (API process)
 
@@ -37,6 +38,8 @@ HTTP API for the Gains backend (Gin). Base URL defaults to `http://localhost:{PO
 | `ENV` | e.g. `production` (affects Gin mode) |
 | `OPENAI_API_KEY` | OpenAI API key for **`POST /ai/analyze-workout/*`** (if unset, that route returns **503**) |
 | `OPENAI_MODEL` | Chat model (default **`gpt-4o-mini`**) |
+| `PHYSIQUE_SCAN_MODEL` | Vision model for physique scans (default **`gpt-5.4-mini`**) |
+| `PHYSIQUE_UPLOAD_DIR` | Local directory for stored scan images (default **`data/uploads/physique`**) |
 
 ---
 
@@ -626,15 +629,84 @@ List saved insights for the user (**never** calls OpenAI). Optional query **`lim
 
 **200:** `{ "insights": [ { "id", "workout_id"?, "insight_type", "title", "summary", "created_at" } ] }` — **`summary`** is the stored message body (`generated_text`).
 
+### `POST /ai/chat`
+
+Multi-turn **coach chat**. On a **new** conversation (omit **`conversation_id`**), the server loads **`analytics.Service.CoachContextJSON`** — the same payload as **`GET /analytics/coach-context`** — and stores it once as a hidden **system** message. Follow-up messages in that thread use stored history (context is not re-fetched every turn).
+
+**Body:** `{ "message": "...", "conversation_id"?: "uuid" }`
+
+**200:** `{ "conversation_id", "assistant": { "id", "role", "content", "created_at" } }`
+
+**400:** empty message · **404:** unknown **`conversation_id`** · **503:** no **`OPENAI_API_KEY`**
+
+### `GET /ai/chat/conversations`
+
+List coach threads for the user (**no** OpenAI). Query **`limit`** (default **30**, max **100**).
+
+**200:** `{ "conversations": [ { "id", "title", "created_at", "updated_at" } ] }`
+
+### `GET /ai/chat/conversations/:conversationId/messages`
+
+User/assistant messages only (**no** OpenAI, system context omitted). **404** if not yours.
+
+**200:** `{ "conversation_id", "messages": [ ... ] }`
+
+**Database:** migration **`000013_coach_chat`** — tables **`coach_conversations`**, **`coach_messages`**.
+
+---
+
+## Physique scans (body fat estimate)
+
+**Auth:** required · **Rate limit:** `PHYSIQUE_RATE_LIMIT_*` (defaults **2** RPS / **4** burst).
+
+Lightweight vision estimate from physique photos. **Not medical advice** — integer body fat % only, with **`low` | `medium` | `high`** confidence.
+
+**Database:** migration **`000014_physique_scans`** — table **`physique_scans`** (`id`, `user_id`, `image_url`, `estimated_body_fat_pct`, `confidence`, `created_at`).
+
+Stored images are served at **`GET /uploads/physique/{user_id}/{scan_id}/{index}.jpg`** (or `.png` / `.webp`).
+
+### `POST /physique-scans`
+
+**Content-Type:** `multipart/form-data`
+
+**Fields:** one or more files — **`images`** (preferred) or **`image`**. Up to **3** files, **8MB** each. Types: **jpeg**, **png**, **webp**.
+
+**Flow:** save image(s) → OpenAI vision (`PHYSIQUE_SCAN_MODEL`, requires **`OPENAI_API_KEY`**) → persist scan → return estimate.
+
+**201:**
+
+```json
+{
+  "id": "uuid",
+  "estimated_body_fat_pct": 16,
+  "confidence": "medium",
+  "image_url": "/uploads/physique/{user_id}/{scan_id}/0.jpg"
+}
+```
+
+**400:** no images / too many / too large / unsupported type · **503:** no **`OPENAI_API_KEY`**
+
+### `GET /physique-scans`
+
+List scans for the user, newest first. Query **`limit`** (default **50**, max **100**).
+
+**200:** `{ "scans": [ { "id", "user_id", "image_url", "estimated_body_fat_pct", "confidence", "created_at" } ] }`
+
+### `GET /physique-scans/:id`
+
+**200:** single scan object (same fields as list items).
+
+**404:** not found / not yours.
+
 ---
 
 ## Current scope
 
 Implemented in this repository:
 
-- Health, auth (`/auth/*`, `/me`), profile, exercise catalog, user routines, routine templates, **workouts (start / sets / finish + BW-relative Strength Elo + history)**, **recovery check-ins**, **home + analytics** (`/home`, `/analytics/exercises`, `/analytics/exercises/:id`, `/analytics/workouts/:id/context`, `/analytics/coach-context`), **AI** (`POST /ai/analyze-workout/:workoutId`, `GET /ai/insights`).
+- Health, auth (`/auth/*`, `/me`), profile, exercise catalog, user routines, routine templates, **workouts (start / sets / finish + BW-relative Strength Elo + history)**, **recovery check-ins**, **home + analytics** (`/home`, `/analytics/exercises`, `/analytics/exercises/:id`, `/analytics/workouts/:id/context`, `/analytics/coach-context`), **AI** (`POST /ai/analyze-workout/:workoutId`, `GET /ai/insights`, **`POST /ai/chat`**, **`GET /ai/chat/conversations`**, **`GET /ai/chat/conversations/:id/messages`**), **physique scans** (`POST /physique-scans`, `GET /physique-scans`, `GET /physique-scans/:id`).
 
-Not implemented as HTTP API here yet: **`/ai/chat`** and other conversational AI routes, OAuth (Google/Apple), etc.
+Not implemented as HTTP API here yet: OAuth (Google/Apple), etc.
 
 ---
 

@@ -184,6 +184,15 @@ func (s *Service) WorkoutContextJSON(ctx context.Context, userID, workoutID stri
 	return json.MarshalIndent(wctx, "", "  ")
 }
 
+// CoachContextJSON is the canonical JSON for POST /ai/chat (same payload as GET /analytics/coach-context).
+func (s *Service) CoachContextJSON(ctx context.Context, userID string) ([]byte, error) {
+	ctxPayload, err := s.CoachContext(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return json.MarshalIndent(ctxPayload, "", "  ")
+}
+
 func exerciseComparisons(cur completedWorkoutRow, curSets []workout.SetOut, prev *completedWorkoutRow, prevSets []workout.SetOut) []WorkoutContextExerciseCompare {
 	curByEx := map[string]float64{}
 	curVol := map[string]float64{}

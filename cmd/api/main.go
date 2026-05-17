@@ -19,6 +19,7 @@ import (
 	"gainsai/internal/db"
 	"gainsai/internal/exercise"
 	"gainsai/internal/middleware"
+	"gainsai/internal/physique"
 	"gainsai/internal/profile"
 	"gainsai/internal/recovery"
 	"gainsai/internal/routine"
@@ -111,9 +112,21 @@ func main() {
 	analyticsHandler.RegisterRoutes(r, requireAuth, analyticsLimiter.Middleware())
 
 	aiLimiter := middleware.NewIPRateLimiter(cfg.AIRateLimitRPS, cfg.AIRateLimitBurst)
-	aiSvc := ai.NewService(aiRepo, workoutRepo, cfg, analyticsSvc)
+	chatRepo := ai.NewChatRepository(pool)
+	aiSvc := ai.NewService(aiRepo, chatRepo, workoutRepo, cfg, analyticsSvc)
 	aiHandler := ai.NewHandler(aiSvc)
 	aiHandler.RegisterRoutes(r, requireAuth, aiLimiter.Middleware())
+
+	physiqueStore, err := physique.NewStorage(cfg.PhysiqueUploadDir)
+	if err != nil {
+		log.Fatalf("physique storage: %v", err)
+	}
+	physiqueLimiter := middleware.NewIPRateLimiter(cfg.PhysiqueRateLimitRPS, cfg.PhysiqueRateLimitBurst)
+	physiqueRepo := physique.NewRepository(pool)
+	physiqueSvc := physique.NewService(physiqueRepo, physiqueStore, cfg)
+	physiqueHandler := physique.NewHandler(physiqueSvc)
+	physiqueHandler.RegisterRoutes(r, requireAuth, physiqueLimiter.Middleware())
+	r.Static("/uploads/physique", physiqueStore.RootDir())
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

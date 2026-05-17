@@ -36,20 +36,28 @@ type openAIChatResponse struct {
 	} `json:"error"`
 }
 
-// ChatCompletion calls OpenAI chat completions and returns assistant text (trimmed).
+// ChatCompletion calls OpenAI chat completions with a single system + user message.
 func ChatCompletion(ctx context.Context, apiKey, model, systemPrompt, userContent string) (string, error) {
+	return ChatCompletionMessages(ctx, apiKey, model, []openAIChatMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: userContent},
+	})
+}
+
+// ChatCompletionMessages calls OpenAI with a full message list (roles: system, user, assistant).
+func ChatCompletionMessages(ctx context.Context, apiKey, model string, messages []openAIChatMessage) (string, error) {
 	if strings.TrimSpace(apiKey) == "" {
 		return "", ErrOpenAINotConfigured
 	}
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
+	if len(messages) == 0 {
+		return "", errors.New("openai: no messages")
+	}
 	body := openAIChatRequest{
-		Model: model,
-		Messages: []openAIChatMessage{
-			{Role: "system", Content: systemPrompt},
-			{Role: "user", Content: userContent},
-		},
+		Model:    model,
+		Messages: messages,
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {

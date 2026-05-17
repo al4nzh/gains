@@ -12,13 +12,14 @@ import (
 
 type Service struct {
 	repo      *Repository
+	chat      *ChatRepository
 	workouts  *workout.Repository
 	cfg       *config.Config
-	analytics WorkoutContextJSONProvider
+	analytics AnalyticsContextProvider
 }
 
-func NewService(repo *Repository, workouts *workout.Repository, cfg *config.Config, analytics WorkoutContextJSONProvider) *Service {
-	return &Service{repo: repo, workouts: workouts, cfg: cfg, analytics: analytics}
+func NewService(repo *Repository, chat *ChatRepository, workouts *workout.Repository, cfg *config.Config, analytics AnalyticsContextProvider) *Service {
+	return &Service{repo: repo, chat: chat, workouts: workouts, cfg: cfg, analytics: analytics}
 }
 
 // AnalyzeWorkout generates or returns the saved post-workout analysis (at most one per workout_id).

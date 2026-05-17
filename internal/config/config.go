@@ -44,6 +44,11 @@ type Config struct {
 	OpenAIModel      string
 	AIRateLimitRPS   float64
 	AIRateLimitBurst int
+
+	PhysiqueScanModel   string
+	PhysiqueUploadDir   string
+	PhysiqueRateLimitRPS   float64
+	PhysiqueRateLimitBurst int
 }
 
 func Load() (*Config, error) {
@@ -99,6 +104,11 @@ func Load() (*Config, error) {
 	cfg.OpenAIModel = getEnv("OPENAI_MODEL", "gpt-4o-mini")
 	cfg.AIRateLimitRPS = parseFloat("AI_RATE_LIMIT_RPS", 3)
 	cfg.AIRateLimitBurst = parseInt("AI_RATE_LIMIT_BURST", 6)
+
+	cfg.PhysiqueScanModel = getEnv("PHYSIQUE_SCAN_MODEL", "gpt-5.4-mini")
+	cfg.PhysiqueUploadDir = getEnv("PHYSIQUE_UPLOAD_DIR", "data/uploads/physique")
+	cfg.PhysiqueRateLimitRPS = parseFloat("PHYSIQUE_RATE_LIMIT_RPS", 2)
+	cfg.PhysiqueRateLimitBurst = parseInt("PHYSIQUE_RATE_LIMIT_BURST", 4)
 
 	return cfg, nil
 }
