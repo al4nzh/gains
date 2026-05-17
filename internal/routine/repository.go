@@ -259,6 +259,13 @@ func insertRoutineExerciseRow(ctx context.Context, tx pgx.Tx, routineID, exercis
 }
 
 func applyRoutineExerciseOrder(ctx context.Context, tx pgx.Tx, routineID string, orderedIDs []string) error {
+	// Two-phase updates avoid UNIQUE (routine_id, position) collisions while reordering.
+	const tempBase = 100_000
+	for i, id := range orderedIDs {
+		if _, err := tx.Exec(ctx, `UPDATE routine_exercises SET position = $1 WHERE id = $2 AND routine_id = $3`, tempBase+i, id, routineID); err != nil {
+			return err
+		}
+	}
 	for i, id := range orderedIDs {
 		if _, err := tx.Exec(ctx, `UPDATE routine_exercises SET position = $1 WHERE id = $2 AND routine_id = $3`, i+1, id, routineID); err != nil {
 			return err
@@ -406,6 +413,31 @@ func (r *Repository) UpdateRoutineExercise(ctx context.Context, routineID, rowID
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+	return r.getRoutineExerciseOut(ctx, routineID, rowID)
+}
+
+// ReplaceRoutineExercise swaps the catalog exercise on an existing routine line (same row id / position).
+func (r *Repository) ReplaceRoutineExercise(ctx context.Context, userID, routineID, rowID, newExerciseID string) (*RoutineExerciseOut, error) {
+	if _, err := r.GetRoutineForUser(ctx, userID, routineID); err != nil {
+		return nil, err
+	}
+	ok, err := r.ExerciseExists(ctx, newExerciseID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrExerciseNotFound
+	}
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE routine_exercises SET exercise_id = $3
+		WHERE id = $1 AND routine_id = $2`, rowID, routineID, newExerciseID)
+	if err != nil {
+		return nil, err
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, ErrRoutineExerciseNotFound
+	}
+	_, _ = r.pool.Exec(ctx, `UPDATE routines SET updated_at = NOW() WHERE id = $1`, routineID)
 	return r.getRoutineExerciseOut(ctx, routineID, rowID)
 }
 

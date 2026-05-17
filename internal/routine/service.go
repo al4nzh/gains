@@ -195,6 +195,10 @@ func (s *Service) DeleteRoutineExercise(ctx context.Context, userID, routineID, 
 	return s.repo.DeleteRoutineExercise(ctx, userID, routineID, rowID)
 }
 
+func (s *Service) ReplaceRoutineExercise(ctx context.Context, userID, routineID, rowID, newExerciseID string) (*RoutineExerciseOut, error) {
+	return s.repo.ReplaceRoutineExercise(ctx, userID, routineID, rowID, newExerciseID)
+}
+
 func (s *Service) ListTemplates(ctx context.Context) ([]RoutineTemplate, error) {
 	return s.repo.ListRoutineTemplates(ctx)
 }

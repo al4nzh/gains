@@ -66,20 +66,33 @@ func (s *Service) Chat(ctx context.Context, userID string, req ChatRequest) (*Ch
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
-	reply, err := ChatCompletionMessages(ctx, s.cfg.OpenAIAPIKey, model, openAIMsgs)
+	reply, err := ChatCompletionMessagesJSON(ctx, s.cfg.OpenAIAPIKey, model, openAIMsgs)
 	if err != nil {
 		return nil, err
 	}
 
-	assistant, err := s.chat.InsertMessage(ctx, convID, ChatRoleAssistant, reply)
+	parsed, _ := parseCoachChatLLM(reply)
+	display := strings.TrimSpace(parsed.Message)
+	if display == "" {
+		display = strings.TrimSpace(reply)
+	}
+
+	assistant, err := s.chat.InsertMessage(ctx, convID, ChatRoleAssistant, display)
 	if err != nil {
 		return nil, err
 	}
 	_ = s.chat.TouchConversation(ctx, convID)
 
+	proposed, clar, err := s.persistProposedActions(ctx, userID, convID, parsed.ProposedActions)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ChatResponse{
-		ConversationID: convID,
-		Assistant:      *assistant,
+		ConversationID:  convID,
+		Assistant:       *assistant,
+		ProposedActions: proposed,
+		Clarification:   clar,
 	}, nil
 }
 

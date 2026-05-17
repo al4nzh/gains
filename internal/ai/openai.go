@@ -15,8 +15,13 @@ import (
 const openAIBaseURL = "https://api.openai.com/v1/chat/completions"
 
 type openAIChatRequest struct {
-	Model    string              `json:"model"`
-	Messages []openAIChatMessage `json:"messages"`
+	Model          string              `json:"model"`
+	Messages       []openAIChatMessage `json:"messages"`
+	ResponseFormat *openAIRespFormat   `json:"response_format,omitempty"`
+}
+
+type openAIRespFormat struct {
+	Type string `json:"type"`
 }
 
 type openAIChatMessage struct {
@@ -46,6 +51,15 @@ func ChatCompletion(ctx context.Context, apiKey, model, systemPrompt, userConten
 
 // ChatCompletionMessages calls OpenAI with a full message list (roles: system, user, assistant).
 func ChatCompletionMessages(ctx context.Context, apiKey, model string, messages []openAIChatMessage) (string, error) {
+	return chatCompletionMessages(ctx, apiKey, model, messages, false)
+}
+
+// ChatCompletionMessagesJSON requests a JSON object response (e.g. coach chat with proposed_actions).
+func ChatCompletionMessagesJSON(ctx context.Context, apiKey, model string, messages []openAIChatMessage) (string, error) {
+	return chatCompletionMessages(ctx, apiKey, model, messages, true)
+}
+
+func chatCompletionMessages(ctx context.Context, apiKey, model string, messages []openAIChatMessage, jsonObject bool) (string, error) {
 	if strings.TrimSpace(apiKey) == "" {
 		return "", ErrOpenAINotConfigured
 	}
@@ -58,6 +72,9 @@ func ChatCompletionMessages(ctx context.Context, apiKey, model string, messages 
 	body := openAIChatRequest{
 		Model:    model,
 		Messages: messages,
+	}
+	if jsonObject {
+		body.ResponseFormat = &openAIRespFormat{Type: "json_object"}
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {

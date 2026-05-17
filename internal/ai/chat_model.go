@@ -1,6 +1,10 @@
 package ai
 
-import "time"
+import (
+	"time"
+
+	"gainsai/internal/actionengine"
+)
 
 const (
 	ChatRoleSystem    = "system"
@@ -37,8 +41,10 @@ type ChatRequest struct {
 
 // ChatResponse is POST /ai/chat 200 body.
 type ChatResponse struct {
-	ConversationID string       `json:"conversation_id"`
-	Assistant      CoachMessage `json:"assistant"`
+	ConversationID  string                   `json:"conversation_id"`
+	Assistant       CoachMessage             `json:"assistant"`
+	ProposedActions []actionengine.Action    `json:"proposed_actions,omitempty"`
+	Clarification   *actionengine.Clarification `json:"clarification,omitempty"`
 }
 
 // ConversationListResponse is GET /ai/chat/conversations.

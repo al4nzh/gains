@@ -355,7 +355,7 @@ func (s *Service) CoachContext(ctx context.Context, userID string) (*CoachContex
 		Sharpness:           sharpnessFromCheckins(checkins, prof),
 		Recovery:            buildCoachRecoveryContext(checkins),
 		RecentWorkouts:      recentCoach,
-		ActiveRoutines:      routines,
+		ActiveRoutines:      buildCoachRoutines(routines),
 		ExerciseProgression: progression,
 		RecentAIInsights:    insights,
 		PendingAIActions:    actions,

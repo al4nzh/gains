@@ -599,7 +599,8 @@ Structured bundle for **coach / AI** (not a minimal UI tab). **Auth** + analytic
 - **`recent_workouts`** — array of **5** objects, newest first: `workout_id`, `name`, `routine_id`, `completed_at`, `total_volume_kg`, `duration_seconds`, `strength_elo_delta` (from finish **`stats`** when present), **`exercises`**: ordered as logged, each `{ exercise_id, exercise_name, sets: [{ set_number, reps?, weight_kg?, rpe?, is_failure }], best_set?, best_e1rm_kg, volume_kg }`.
 - **`active_routines`** — up to **5** **`routine.Routine`** rows with **`exercises`** filled (`RoutineExerciseOut`: targets, rest, notes, `exercise_name`, etc.).
 - **`exercise_progression`** — up to **8** objects with the same shape as **`GET /analytics/exercises`** rows (`latest_*`, **`absolute_best_*`** lifetime, `e1rm_change_*`, `data_points`, `trend`).
-- **`recent_ai_insights`**, **`pending_ai_actions`** — unchanged lists for automation / coach follow-ups.
+- **`recent_ai_insights`**, **`pending_ai_actions`** — pending structured actions awaiting user accept/reject.
+- **`active_routines`** — `{ routine_id, routine_name, exercises: [{ routine_exercise_id, exercise_id, exercise_name, target_sets, target_rep_min, target_rep_max, rest_seconds, position }] }`.
 
 ---
 
@@ -635,9 +636,31 @@ Multi-turn **coach chat**. On a **new** conversation (omit **`conversation_id`**
 
 **Body:** `{ "message": "...", "conversation_id"?: "uuid" }`
 
-**200:** `{ "conversation_id", "assistant": { "id", "role", "content", "created_at" } }`
+Coach context includes **`active_routines`** with **`routine_exercise_id`** per line (for safe edits). The model returns JSON with a user-visible **`message`** and optional **`proposed_actions`**. Valid actions are stored in **`ai_actions`** as **`pending`** (never auto-applied). Invalid or ambiguous exercise names are dropped; **`clarification`** may be returned when the catalog match is unclear.
+
+**200:** `{ "conversation_id", "assistant": { ... }, "proposed_actions"?: [ ... ], "clarification"?: { "clarification_required", "message", "possible_matches" } }`
 
 **400:** empty message · **404:** unknown **`conversation_id`** · **503:** no **`OPENAI_API_KEY`**
+
+### `GET /ai/actions/pending`
+
+List **`pending`** coach actions for the user (optional **`limit`**, default **50**).
+
+**200:** `{ "actions": [ { "id", "action_type", "target_type", "target_id", "payload", "reason", "status", "created_at", ... } ] }`
+
+### `POST /ai/actions/:id/accept`
+
+Re-validate ownership and payload, apply the change deterministically, set status **`applied`**.
+
+**200:** updated action row · **404** / **409** if missing or not pending · **400** if target gone or validation fails
+
+### `POST /ai/actions/:id/reject`
+
+Mark **`rejected`**; no data mutation.
+
+**200:** updated action row
+
+**Database:** migration **`000015_ai_actions_coach`** extends **`ai_actions`** (`source_type`, `source_id`, `target_type`, `target_id`, `reason`, `applied_at`).
 
 ### `GET /ai/chat/conversations`
 

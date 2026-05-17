@@ -7,7 +7,6 @@ import (
 	"gainsai/internal/actionengine"
 	"gainsai/internal/ai"
 	"gainsai/internal/profile"
-	"gainsai/internal/routine"
 	"gainsai/internal/workout"
 )
 
@@ -251,7 +250,7 @@ type CoachContextResponse struct {
 	Sharpness           *SharpnessOverview       `json:"sharpness,omitempty"`
 	Recovery            CoachRecoveryContext     `json:"recovery"`
 	RecentWorkouts      []CoachRecentWorkout     `json:"recent_workouts"`
-	ActiveRoutines      []routine.Routine        `json:"active_routines"`
+	ActiveRoutines      []CoachRoutine           `json:"active_routines"`
 	ExerciseProgression []ExerciseListItem       `json:"exercise_progression"`
 	RecentAIInsights    []ai.Insight             `json:"recent_ai_insights,omitempty"`
 	PendingAIActions    []actionengine.Action    `json:"pending_ai_actions,omitempty"`

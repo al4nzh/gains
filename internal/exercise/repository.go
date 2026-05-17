@@ -55,6 +55,42 @@ func (r *Repository) SearchCatalog(ctx context.Context, query string, limit int)
 	return pgx.CollectRows(rows, pgx.RowToStructByName[Exercise])
 }
 
+// ResolveCatalogByName returns a unique catalog exercise id for an exact name match (case-insensitive).
+// If zero or multiple exact matches exist, ambiguous lists candidates from a name search.
+func (r *Repository) ResolveCatalogByName(ctx context.Context, name string, searchLimit int) (exerciseID string, ambiguous []Exercise, err error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", nil, nil
+	}
+	if searchLimit < 1 {
+		searchLimit = 10
+	}
+	if searchLimit > 25 {
+		searchLimit = 25
+	}
+	candidates, err := r.SearchCatalog(ctx, name, searchLimit)
+	if err != nil {
+		return "", nil, err
+	}
+	var exact []Exercise
+	for _, ex := range candidates {
+		if strings.EqualFold(strings.TrimSpace(ex.Name), name) {
+			exact = append(exact, ex)
+		}
+	}
+	switch len(exact) {
+	case 1:
+		return exact[0].ID, nil, nil
+	case 0:
+		if len(candidates) == 0 {
+			return "", nil, nil
+		}
+		return "", candidates, nil
+	default:
+		return "", exact, nil
+	}
+}
+
 // GetNamesByIDs returns exercise id -> name for any exercise rows (catalog or custom).
 func (r *Repository) GetNamesByIDs(ctx context.Context, ids []string) (map[string]string, error) {
 	if len(ids) == 0 {

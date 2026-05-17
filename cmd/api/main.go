@@ -113,7 +113,8 @@ func main() {
 
 	aiLimiter := middleware.NewIPRateLimiter(cfg.AIRateLimitRPS, cfg.AIRateLimitBurst)
 	chatRepo := ai.NewChatRepository(pool)
-	aiSvc := ai.NewService(aiRepo, chatRepo, workoutRepo, cfg, analyticsSvc)
+	actionRepo := ai.NewActionRepository(pool)
+	aiSvc := ai.NewService(aiRepo, chatRepo, actionRepo, workoutRepo, profileRepo, routineRepo, routineSvc, exerciseRepo, cfg, analyticsSvc)
 	aiHandler := ai.NewHandler(aiSvc)
 	aiHandler.RegisterRoutes(r, requireAuth, aiLimiter.Middleware())
 

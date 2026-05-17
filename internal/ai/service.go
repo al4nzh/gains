@@ -7,19 +7,47 @@ import (
 	"strings"
 
 	"gainsai/internal/config"
+	"gainsai/internal/exercise"
+	"gainsai/internal/profile"
+	"gainsai/internal/routine"
 	"gainsai/internal/workout"
 )
 
 type Service struct {
-	repo      *Repository
-	chat      *ChatRepository
-	workouts  *workout.Repository
-	cfg       *config.Config
-	analytics AnalyticsContextProvider
+	repo        *Repository
+	chat        *ChatRepository
+	actions     *ActionRepository
+	actionVal   *ActionValidator
+	actionApply *ActionApplier
+	workouts    *workout.Repository
+	profiles    *profile.Repository
+	cfg         *config.Config
+	analytics   AnalyticsContextProvider
 }
 
-func NewService(repo *Repository, chat *ChatRepository, workouts *workout.Repository, cfg *config.Config, analytics AnalyticsContextProvider) *Service {
-	return &Service{repo: repo, chat: chat, workouts: workouts, cfg: cfg, analytics: analytics}
+func NewService(
+	repo *Repository,
+	chat *ChatRepository,
+	actions *ActionRepository,
+	workouts *workout.Repository,
+	profiles *profile.Repository,
+	routines *routine.Repository,
+	routineSvc *routine.Service,
+	exercises *exercise.Repository,
+	cfg *config.Config,
+	analytics AnalyticsContextProvider,
+) *Service {
+	return &Service{
+		repo:        repo,
+		chat:        chat,
+		actions:     actions,
+		actionVal:   NewActionValidator(profiles, routines, exercises),
+		actionApply: NewActionApplier(profiles, routineSvc),
+		workouts:    workouts,
+		profiles:    profiles,
+		cfg:         cfg,
+		analytics:   analytics,
+	}
 }
 
 // AnalyzeWorkout generates or returns the saved post-workout analysis (at most one per workout_id).
