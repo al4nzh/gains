@@ -19,6 +19,9 @@ type Config struct {
 	JWTAccessTTL  time.Duration
 	JWTRefreshTTL time.Duration
 
+	GoogleOAuthClientIDs []string
+	AppleOAuthClientID   string
+
 	AuthRateLimitRPS   float64
 	AuthRateLimitBurst int
 
@@ -78,6 +81,9 @@ func Load() (*Config, error) {
 	if cfg.JWTRefreshTTL, err = parseDuration("JWT_REFRESH_TTL", "720h"); err != nil {
 		return nil, err
 	}
+
+	cfg.GoogleOAuthClientIDs = parseCSVEnv("GOOGLE_OAUTH_CLIENT_IDS")
+	cfg.AppleOAuthClientID = strings.TrimSpace(os.Getenv("APPLE_OAUTH_CLIENT_ID"))
 
 	cfg.AuthRateLimitRPS = parseFloat("AUTH_RATE_LIMIT_RPS", 5)
 	cfg.AuthRateLimitBurst = parseInt("AUTH_RATE_LIMIT_BURST", 10)
@@ -149,4 +155,20 @@ func parseInt(key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+func parseCSVEnv(key string) []string {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

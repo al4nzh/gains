@@ -50,7 +50,7 @@ func main() {
 	userRepo := user.NewRepository(pool)
 	refreshStore := auth.NewRefreshStore(pool)
 	jwtIssuer := auth.NewJWTIssuer(cfg.JWTSecret, cfg.JWTAccessTTL)
-	authService := auth.NewService(userRepo, refreshStore, jwtIssuer, cfg.JWTRefreshTTL)
+	authService := auth.NewService(userRepo, refreshStore, jwtIssuer, cfg.JWTRefreshTTL, cfg.GoogleOAuthClientIDs, cfg.AppleOAuthClientID)
 	authHandler := auth.NewHandler(authService, userRepo)
 
 	authLimiter := middleware.NewIPRateLimiter(cfg.AuthRateLimitRPS, cfg.AuthRateLimitBurst)
@@ -114,7 +114,8 @@ func main() {
 	aiLimiter := middleware.NewIPRateLimiter(cfg.AIRateLimitRPS, cfg.AIRateLimitBurst)
 	chatRepo := ai.NewChatRepository(pool)
 	actionRepo := ai.NewActionRepository(pool)
-	aiSvc := ai.NewService(aiRepo, chatRepo, actionRepo, workoutRepo, profileRepo, routineRepo, routineSvc, exerciseRepo, cfg, analyticsSvc)
+	routineDraftRepo := ai.NewRoutineDraftRepository(pool)
+	aiSvc := ai.NewService(aiRepo, chatRepo, actionRepo, routineDraftRepo, workoutRepo, profileRepo, routineRepo, routineSvc, exerciseRepo, cfg, analyticsSvc)
 	aiHandler := ai.NewHandler(aiSvc)
 	aiHandler.RegisterRoutes(r, requireAuth, aiLimiter.Middleware())
 

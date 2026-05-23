@@ -38,6 +38,8 @@ HTTP API for the Gains backend (Gin). Base URL defaults to `http://localhost:{PO
 | `ENV` | e.g. `production` (affects Gin mode) |
 | `OPENAI_API_KEY` | OpenAI API key for **`POST /ai/analyze-workout/*`** (if unset, that route returns **503**) |
 | `OPENAI_MODEL` | Chat model (default **`gpt-4o-mini`**) |
+| `GOOGLE_OAUTH_CLIENT_IDS` | Comma-separated Google OAuth client IDs (audiences for `id_token` verification) |
+| `APPLE_OAUTH_CLIENT_ID` | Apple Sign in with Apple Services ID / bundle ID (JWT `aud`) |
 | `PHYSIQUE_SCAN_MODEL` | Vision model for physique scans (default **`gpt-5.4-mini`**) |
 | `PHYSIQUE_UPLOAD_DIR` | Local directory for stored scan images (default **`data/uploads/physique`**) |
 
@@ -94,6 +96,45 @@ All `/auth/*` routes use the **auth** rate limiter.
 **200:** `{ "user": { ... }, "tokens": { ... } }`
 
 **401:** invalid email or password · **500:** internal error
+
+---
+
+### `POST /auth/google`
+
+**Auth:** none · **Requires** `GOOGLE_OAUTH_CLIENT_IDS` on the server.
+
+Mobile or web app completes Google Sign-In, then sends the Google **`id_token`** (JWT). Server verifies it with Google and returns the same **`user` + `tokens`** as email login.
+
+**Body:**
+
+```json
+{
+  "id_token": "<google-id-token>"
+}
+```
+
+**200:** `{ "user": { ... }, "tokens": { ... } }` — `auth_provider` is **`google`**
+
+**401:** invalid / expired token · **409:** email already used with email/password · **503:** OAuth not configured
+
+---
+
+### `POST /auth/apple`
+
+**Auth:** none · **Requires** `APPLE_OAUTH_CLIENT_ID` (Services ID or bundle ID used as Sign in with Apple audience).
+
+**Body:**
+
+```json
+{
+  "id_token": "<apple-identity-token>",
+  "email": "user@example.com"
+}
+```
+
+`email` is optional in the token after the first sign-in; on **first** Apple authorization the client should pass `email` from Apple’s credential if the JWT omits it.
+
+**200:** same shape as Google login · **400:** first sign-in without email · **409:** email conflict · **503:** not configured
 
 ---
 
@@ -678,6 +719,78 @@ User/assistant messages only (**no** OpenAI, system context omitted). **404** if
 
 ---
 
+## AI routine generation
+
+**Auth:** required · Uses **`OPENAI_API_KEY`** and profile + exercise catalog. Routines are **not** saved until the user confirms.
+
+**Database:** migration **`000017_ai_routine_drafts`** — table **`ai_routine_drafts`** (`status`: `draft` | `confirmed` | `rejected` | `expired`).
+
+### `POST /ai/generate-routines`
+
+Generate a preview plan from the user’s profile (goal, experience, preferred split, injury notes, age/weight) plus a free-text request and the system exercise library.
+
+**Body:**
+
+```json
+{
+  "message": "Make me a 4-day upper/lower strength plan with shoulder-friendly pressing."
+}
+```
+
+**200 (success):**
+
+```json
+{
+  "draft_id": "uuid",
+  "title": "4-Day Upper/Lower Strength Plan",
+  "routines": [
+    {
+      "name": "Upper A",
+      "description": "...",
+      "exercises": [
+        {
+          "exercise_id": "uuid",
+          "exercise_name": "Bench Press",
+          "target_sets": 3,
+          "target_rep_min": 4,
+          "target_rep_max": 6,
+          "rest_seconds": 180,
+          "notes": "optional"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**200 (clarification — nothing saved):**
+
+```json
+{
+  "clarification": {
+    "clarification_required": true,
+    "message": "Which exercise did you mean?",
+    "possible_matches": [
+      { "exercise_id": "...", "exercise_name": "..." }
+    ]
+  }
+}
+```
+
+**400:** empty message · **503:** no **`OPENAI_API_KEY`**
+
+Rules: 4–7 exercises per routine, max 7 routines; exercise names must resolve to catalog IDs; no `target_weight_kg`.
+
+### `POST /ai/generated-routines/:draftId/confirm`
+
+Persist a **`draft`** as normal user **`routines`** + **`routine_exercises`**. Idempotent for already-confirmed drafts returns **409**.
+
+**200:** `{ "draft_id", "routines": [ full routine objects with exercises ] }`
+
+**404:** unknown draft · **409:** not in `draft` status
+
+---
+
 ## Physique scans (body fat estimate)
 
 **Auth:** required · **Rate limit:** `PHYSIQUE_RATE_LIMIT_*` (defaults **2** RPS / **4** burst).
@@ -727,9 +840,8 @@ List scans for the user, newest first. Query **`limit`** (default **50**, max **
 
 Implemented in this repository:
 
-- Health, auth (`/auth/*`, `/me`), profile, exercise catalog, user routines, routine templates, **workouts (start / sets / finish + BW-relative Strength Elo + history)**, **recovery check-ins**, **home + analytics** (`/home`, `/analytics/exercises`, `/analytics/exercises/:id`, `/analytics/workouts/:id/context`, `/analytics/coach-context`), **AI** (`POST /ai/analyze-workout/:workoutId`, `GET /ai/insights`, **`POST /ai/chat`**, **`GET /ai/chat/conversations`**, **`GET /ai/chat/conversations/:id/messages`**), **physique scans** (`POST /physique-scans`, `GET /physique-scans`, `GET /physique-scans/:id`).
+- Health, auth (`/auth/*`, `/me`, Google/Apple token login), profile, exercise catalog, user routines, routine templates, **workouts**, **recovery check-ins**, **home + analytics**, **AI** (analyze workout, chat, actions, **`POST /ai/generate-routines`**, **`POST /ai/generated-routines/:id/confirm`**), **physique scans**.
 
-Not implemented as HTTP API here yet: OAuth (Google/Apple), etc.
 
 ---
 

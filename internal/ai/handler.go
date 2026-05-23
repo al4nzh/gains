@@ -30,6 +30,55 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, requireAuth, limiter gin.Handler
 	g.GET("/actions/pending", h.listPendingActions)
 	g.POST("/actions/:id/accept", h.acceptAction)
 	g.POST("/actions/:id/reject", h.rejectAction)
+	g.POST("/generate-routines", h.generateRoutines)
+	g.POST("/generated-routines/:draftId/confirm", h.confirmGeneratedRoutines)
+}
+
+func (h *Handler) generateRoutines(c *gin.Context) {
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+		return
+	}
+	var req GenerateRoutinesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+	out, err := h.svc.GenerateRoutineDraft(c.Request.Context(), userID, req)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrRoutineGenMessageRequired):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case errors.Is(err, ErrOpenAINotConfigured):
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "AI is not configured (set OPENAI_API_KEY)"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (h *Handler) confirmGeneratedRoutines(c *gin.Context) {
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+		return
+	}
+	out, err := h.svc.ConfirmRoutineDraft(c.Request.Context(), userID, c.Param("draftId"))
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrRoutineDraftNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "draft not found"})
+		case errors.Is(err, ErrRoutineDraftNotPending):
+			c.JSON(http.StatusConflict, gin.H{"error": "draft already confirmed or not available"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 func (h *Handler) analyzeWorkout(c *gin.Context) {

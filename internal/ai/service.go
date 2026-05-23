@@ -14,21 +14,26 @@ import (
 )
 
 type Service struct {
-	repo        *Repository
-	chat        *ChatRepository
-	actions     *ActionRepository
-	actionVal   *ActionValidator
-	actionApply *ActionApplier
-	workouts    *workout.Repository
-	profiles    *profile.Repository
-	cfg         *config.Config
-	analytics   AnalyticsContextProvider
+	repo           *Repository
+	chat           *ChatRepository
+	actions        *ActionRepository
+	routineDrafts  *RoutineDraftRepository
+	actionVal      *ActionValidator
+	actionApply    *ActionApplier
+	workouts       *workout.Repository
+	profiles       *profile.Repository
+	routines       *routine.Repository
+	routineSvc     *routine.Service
+	exercises      *exercise.Repository
+	cfg            *config.Config
+	analytics      AnalyticsContextProvider
 }
 
 func NewService(
 	repo *Repository,
 	chat *ChatRepository,
 	actions *ActionRepository,
+	routineDrafts *RoutineDraftRepository,
 	workouts *workout.Repository,
 	profiles *profile.Repository,
 	routines *routine.Repository,
@@ -38,15 +43,19 @@ func NewService(
 	analytics AnalyticsContextProvider,
 ) *Service {
 	return &Service{
-		repo:        repo,
-		chat:        chat,
-		actions:     actions,
-		actionVal:   NewActionValidator(profiles, routines, exercises),
-		actionApply: NewActionApplier(profiles, routineSvc),
-		workouts:    workouts,
-		profiles:    profiles,
-		cfg:         cfg,
-		analytics:   analytics,
+		repo:          repo,
+		chat:          chat,
+		actions:       actions,
+		routineDrafts: routineDrafts,
+		actionVal:     NewActionValidator(profiles, routines, exercises),
+		actionApply:   NewActionApplier(profiles, routineSvc),
+		workouts:      workouts,
+		profiles:      profiles,
+		routines:      routines,
+		routineSvc:    routineSvc,
+		exercises:     exercises,
+		cfg:           cfg,
+		analytics:     analytics,
 	}
 }
 

@@ -1,0 +1,78 @@
+package auth
+
+import (
+	"context"
+	"errors"
+
+	"gainsai/internal/user"
+)
+
+func (s *Service) LoginGoogle(ctx context.Context, idToken string, info ClientInfo) (*user.User, *TokenPair, error) {
+	if len(s.googleClientIDs) == 0 {
+		return nil, nil, ErrOAuthNotConfigured
+	}
+	claims, err := verifyGoogleIDToken(ctx, idToken, s.googleClientIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.loginOAuth(ctx, user.AuthProviderGoogle, claims.Subject, claims.Email, info)
+}
+
+func (s *Service) LoginApple(ctx context.Context, idToken, fallbackEmail string, info ClientInfo) (*user.User, *TokenPair, error) {
+	if s.appleClientID == "" {
+		return nil, nil, ErrOAuthNotConfigured
+	}
+	claims, err := verifyAppleIDToken(idToken, s.appleClientID, fallbackEmail)
+	if err != nil {
+		return nil, nil, err
+	}
+	if claims.Email == "" {
+		return nil, nil, ErrOAuthEmailRequired
+	}
+	return s.loginOAuth(ctx, user.AuthProviderApple, claims.Subject, claims.Email, info)
+}
+
+func (s *Service) loginOAuth(ctx context.Context, provider, providerUserID, email string, info ClientInfo) (*user.User, *TokenPair, error) {
+	email = normalizeEmail(email)
+	if email == "" {
+		return nil, nil, ErrInvalidOAuthToken
+	}
+
+	ident, err := s.users.GetOAuthIdentity(ctx, provider, providerUserID)
+	if err == nil {
+		u, err := s.users.GetByID(ctx, ident.UserID)
+		if err != nil {
+			return nil, nil, err
+		}
+		pair, _, err := s.issueTokens(ctx, u, info)
+		return u, pair, err
+	}
+	if err != nil && !errors.Is(err, user.ErrNotFound) {
+		return nil, nil, err
+	}
+
+	existing, err := s.users.GetByEmail(ctx, email)
+	if err == nil {
+		if existing.AuthProvider != provider {
+			return nil, nil, ErrOAuthEmailConflict
+		}
+		if err := s.users.InsertOAuthIdentity(ctx, existing.ID, provider, providerUserID, email); err != nil {
+			return nil, nil, err
+		}
+		pair, _, err := s.issueTokens(ctx, existing, info)
+		return existing, pair, err
+	}
+	if err != nil && !errors.Is(err, user.ErrNotFound) {
+		return nil, nil, err
+	}
+
+	u, err := s.users.CreateOAuthUser(ctx, email, provider)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := s.users.InsertOAuthIdentity(ctx, u.ID, provider, providerUserID, email); err != nil {
+		return nil, nil, err
+	}
+	pair, _, err := s.issueTokens(ctx, u, info)
+	return u, pair, err
+}

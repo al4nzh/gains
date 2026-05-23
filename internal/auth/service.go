@@ -18,14 +18,23 @@ var (
 const minPasswordLength = 8
 
 type Service struct {
-	users      *user.Repository
-	refresh    *RefreshStore
-	jwt        *JWTIssuer
-	refreshTTL time.Duration
+	users           *user.Repository
+	refresh         *RefreshStore
+	jwt             *JWTIssuer
+	refreshTTL      time.Duration
+	googleClientIDs []string
+	appleClientID   string
 }
 
-func NewService(users *user.Repository, refresh *RefreshStore, jwt *JWTIssuer, refreshTTL time.Duration) *Service {
-	return &Service{users: users, refresh: refresh, jwt: jwt, refreshTTL: refreshTTL}
+func NewService(users *user.Repository, refresh *RefreshStore, jwt *JWTIssuer, refreshTTL time.Duration, googleClientIDs []string, appleClientID string) *Service {
+	return &Service{
+		users:           users,
+		refresh:         refresh,
+		jwt:             jwt,
+		refreshTTL:      refreshTTL,
+		googleClientIDs: googleClientIDs,
+		appleClientID:   appleClientID,
+	}
 }
 
 type ClientInfo struct {
