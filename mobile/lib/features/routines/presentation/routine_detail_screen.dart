@@ -10,6 +10,7 @@ import 'package:gains/features/routines/presentation/routine_formatters.dart';
 import 'package:gains/features/routines/presentation/widgets/add_exercise_sheet.dart';
 import 'package:gains/features/routines/presentation/widgets/edit_exercise_sheet.dart';
 import 'package:gains/features/routines/presentation/widgets/routine_dialogs.dart';
+import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
 
 class RoutineDetailScreen extends StatefulWidget {
@@ -116,21 +117,55 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
     }
   }
 
+  Future<void> _deleteRoutine() async {
+    final r = _routine;
+    if (r == null) return;
+
+    final ok = await confirmDelete(
+      context,
+      'Delete “${r.name}”? Past workouts that used this routine will be kept.',
+      title: 'Delete routine?',
+      confirmLabel: 'Delete',
+    );
+    if (!ok || !mounted) return;
+
+    try {
+      await api.deleteRoutine(r.id);
+      if (!mounted) return;
+      context.read<ShellTabRefresh>().bump(ShellTab.routines);
+      context.pop();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = _routine;
 
-    return Scaffold(
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) context.read<ShellTabRefresh>().bump(ShellTab.routines);
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(r?.name ?? 'Routine'),
         actions: [
-          if (r != null)
+          if (r != null) ...[
             IconButton(
               tooltip: 'Edit routine',
               icon: const Icon(Icons.edit_outlined),
               onPressed: _editRoutine,
             ),
+            IconButton(
+              tooltip: 'Delete routine',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _deleteRoutine,
+            ),
+          ],
         ],
       ),
       floatingActionButton: r == null
@@ -141,6 +176,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
               label: const Text('Add exercise'),
             ),
       body: _buildBody(),
+      ),
     );
   }
 
@@ -174,6 +210,15 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
         children: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => context.push('/train/start?routineId=${r.id}'),
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Start workout'),
+            ),
+          ),
+          const SizedBox(height: 16),
           if (r.description != null && r.description!.isNotEmpty) ...[
             Text(
               r.description!,

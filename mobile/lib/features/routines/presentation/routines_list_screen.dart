@@ -6,6 +6,8 @@ import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/routines/data/routine_api.dart';
 import 'package:gains/features/routines/models/routine.dart';
 import 'package:gains/features/routines/presentation/widgets/routine_dialogs.dart';
+import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
+import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
 
 class RoutinesListScreen extends StatefulWidget {
@@ -15,11 +17,17 @@ class RoutinesListScreen extends StatefulWidget {
   State<RoutinesListScreen> createState() => _RoutinesListScreenState();
 }
 
-class _RoutinesListScreenState extends State<RoutinesListScreen> {
+class _RoutinesListScreenState extends State<RoutinesListScreen> with ShellTabAutoRefresh {
   RoutineApi? _api;
   List<RoutineSummary> _routines = [];
   String? _error;
   bool _loading = true;
+
+  @override
+  int get shellTabIndex => ShellTab.routines;
+
+  @override
+  void onShellTabRefresh() => _load(silent: true);
 
   RoutineApi get api => _api ??= RoutineApi(context.read<ApiClient>());
 
@@ -29,11 +37,13 @@ class _RoutinesListScreenState extends State<RoutinesListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final list = await api.listRoutines();
       if (!mounted) return;
@@ -80,16 +90,35 @@ class _RoutinesListScreenState extends State<RoutinesListScreen> {
         title: const Text('Routines'),
         actions: [
           IconButton(
+            tooltip: 'Generate with AI',
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: () => context.push('/routines/generate'),
+          ),
+          IconButton(
             tooltip: 'Template library',
             icon: const Icon(Icons.library_books_outlined),
             onPressed: () => context.push('/routine-templates'),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _createRoutine,
-        icon: const Icon(Icons.add),
-        label: const Text('New routine'),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'routines_ai',
+            onPressed: () => context.push('/routines/generate'),
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('AI plan'),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            heroTag: 'routines_new',
+            onPressed: _createRoutine,
+            icon: const Icon(Icons.add),
+            label: const Text('New routine'),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: AppColors.primary,

@@ -1,0 +1,232 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:gains/core/api/api_client.dart';
+import 'package:gains/core/api/api_exception.dart';
+import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/features/analytics/data/analytics_api.dart';
+import 'package:gains/features/analytics/models/exercise_progression.dart';
+import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
+import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
+import 'package:gains/features/shell/shell_tab_refresh.dart';
+import 'package:provider/provider.dart';
+
+class ProgressListScreen extends StatefulWidget {
+  const ProgressListScreen({super.key});
+
+  @override
+  State<ProgressListScreen> createState() => _ProgressListScreenState();
+}
+
+class _ProgressListScreenState extends State<ProgressListScreen> with ShellTabAutoRefresh {
+  AnalyticsApi? _api;
+  List<ExerciseProgressionRow> _exercises = [];
+  String? _error;
+  bool _loading = true;
+
+  @override
+  int get shellTabIndex => ShellTab.progress;
+
+  @override
+  void onShellTabRefresh() => _load(silent: true);
+
+  AnalyticsApi get api => _api ??= AnalyticsApi(context.read<ApiClient>());
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+    try {
+      final list = await api.listExercises();
+      if (!mounted) return;
+      setState(() {
+        _exercises = list;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Could not load progress';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Progress')),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _load,
+        child: _buildBody(context),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (_loading && _exercises.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
+          const Center(child: CircularProgressIndicator()),
+        ],
+      );
+    }
+    if (_error != null && _exercises.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.2),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                children: [
+                  Text(_error!, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  OutlinedButton(onPressed: _load, child: const Text('Retry')),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    if (_exercises.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 48),
+          Text(
+            'No exercise data yet',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Finish a workout with logged sets to see e1RM trends here.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      );
+    }
+
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      itemCount: _exercises.length + 1,
+      separatorBuilder: (_, i) => SizedBox(height: i == 0 ? 12 : 8),
+      itemBuilder: (context, i) {
+        if (i == 0) {
+          return Text(
+            'Based on your last 36 completed workouts',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          );
+        }
+        final row = _exercises[i - 1];
+        return _ExerciseProgressCard(
+          row: row,
+          onTap: () => context.push('/progress/${row.exerciseId}'),
+        );
+      },
+    );
+  }
+}
+
+class _ExerciseProgressCard extends StatelessWidget {
+  const _ExerciseProgressCard({required this.row, required this.onTap});
+
+  final ExerciseProgressionRow row;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final changeColor = e1rmChangeColor(row.e1rmChangeKg);
+    final trend = row.trend;
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      row.exerciseName,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Latest e1RM ${formatE1rmKg(row.latestE1rmKg)}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    if (row.latestBestSet != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Top set ${formatSetLoad(row.latestBestSet)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Lifetime best ${formatE1rmKg(row.absoluteBestE1rmKg)} · ${row.dataPoints} sessions',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(trendIcon(trend), size: 18, color: trendColor(trend)),
+                      const SizedBox(width: 4),
+                      Text(
+                        formatE1rmDelta(row.e1rmChangeKg, pct: row.e1rmChangePct),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: changeColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Icon(Icons.chevron_right, color: AppColors.textMuted),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

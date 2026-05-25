@@ -2,7 +2,7 @@ package recovery
 
 import "time"
 
-// Checkin is a daily recovery log: sleep, readiness, calories, protein, optional note.
+// Checkin is a daily readiness log: last night's sleep, today's energy, yesterday's nutrition.
 type Checkin struct {
 	ID               string    `json:"id"              db:"id"`
 	CheckinDate      time.Time `json:"-"               db:"checkin_date"`

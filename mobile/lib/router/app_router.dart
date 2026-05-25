@@ -8,12 +8,20 @@ import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/home/presentation/home_screen.dart';
 import 'package:gains/features/profile/presentation/onboarding_screen.dart';
 import 'package:gains/features/profile/presentation/profile_menu_screen.dart';
+import 'package:gains/features/routines/presentation/generate_routines_screen.dart';
 import 'package:gains/features/routines/presentation/routine_detail_screen.dart';
 import 'package:gains/features/routines/presentation/routines_list_screen.dart';
 import 'package:gains/features/routines/presentation/template_detail_screen.dart';
 import 'package:gains/features/routines/presentation/templates_list_screen.dart';
 import 'package:gains/features/shell/presentation/app_shell.dart';
-import 'package:gains/features/shell/presentation/placeholder_tab_screen.dart';
+import 'package:gains/features/ai/presentation/coach_screen.dart';
+import 'package:gains/features/analytics/presentation/exercise_detail_screen.dart';
+import 'package:gains/features/analytics/presentation/progress_list_screen.dart';
+import 'package:gains/features/workouts/models/finish_stats.dart';
+import 'package:gains/features/workouts/presentation/active_workout_screen.dart';
+import 'package:gains/features/workouts/presentation/start_workout_screen.dart';
+import 'package:gains/features/workouts/presentation/train_screen.dart';
+import 'package:gains/features/workouts/presentation/workout_summary_screen.dart';
 
 class AppRouter {
   AppRouter(this._session) {
@@ -59,7 +67,33 @@ class AppRouter {
               routes: [
                 GoRoute(
                   path: '/train',
-                  builder: (_, _) => const PlaceholderTabScreen(title: 'Train'),
+                  builder: (_, _) => const TrainScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'start',
+                      parentNavigatorKey: _rootNavigatorKey,
+                      builder: (_, state) => StartWorkoutScreen(
+                        routineId: state.uri.queryParameters['routineId'],
+                      ),
+                    ),
+                    GoRoute(
+                      path: 'workout/:id',
+                      parentNavigatorKey: _rootNavigatorKey,
+                      builder: (_, state) => ActiveWorkoutScreen(
+                        workoutId: state.pathParameters['id']!,
+                      ),
+                      routes: [
+                        GoRoute(
+                          path: 'summary',
+                          parentNavigatorKey: _rootNavigatorKey,
+                          builder: (_, state) => WorkoutSummaryScreen(
+                            workoutId: state.pathParameters['id']!,
+                            initialStats: state.extra as FinishStats?,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -69,6 +103,11 @@ class AppRouter {
                   path: '/routines',
                   builder: (_, _) => const RoutinesListScreen(),
                   routes: [
+                    GoRoute(
+                      path: 'generate',
+                      parentNavigatorKey: _rootNavigatorKey,
+                      builder: (_, _) => const GenerateRoutinesScreen(),
+                    ),
                     GoRoute(
                       path: ':id',
                       parentNavigatorKey: _rootNavigatorKey,
@@ -84,7 +123,16 @@ class AppRouter {
               routes: [
                 GoRoute(
                   path: '/progress',
-                  builder: (_, _) => const PlaceholderTabScreen(title: 'Progress'),
+                  builder: (_, _) => const ProgressListScreen(),
+                  routes: [
+                    GoRoute(
+                      path: ':exerciseId',
+                      parentNavigatorKey: _rootNavigatorKey,
+                      builder: (_, state) => ExerciseDetailScreen(
+                        exerciseId: state.pathParameters['exerciseId']!,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -92,7 +140,7 @@ class AppRouter {
               routes: [
                 GoRoute(
                   path: '/coach',
-                  builder: (_, _) => const PlaceholderTabScreen(title: 'Coach'),
+                  builder: (_, _) => const CoachScreen(),
                 ),
               ],
             ),

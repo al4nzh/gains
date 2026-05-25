@@ -129,6 +129,14 @@ class RoutineApi {
     }
   }
 
+  Future<void> deleteRoutine(String id) async {
+    try {
+      await _client.dio.delete<void>('/routines/$id');
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
   Future<List<RoutineTemplateSummary>> listTemplates() async {
     try {
       final response = await _client.dio.get<Map<String, dynamic>>('/routine-templates');

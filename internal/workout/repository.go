@@ -244,6 +244,35 @@ func (r *Repository) HistoricalMaxE1RMPerExercise(ctx context.Context, userID, e
 	return best, nil
 }
 
+// ListExerciseNamesFromCompletedWorkouts returns distinct exercise names the user
+// has logged with countable load (reps + weight) in finished sessions.
+func (r *Repository) ListExerciseNamesFromCompletedWorkouts(ctx context.Context, userID string) ([]string, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT DISTINCT e.name
+		FROM workout_sets ws
+		JOIN workouts w ON w.id = ws.workout_id
+		JOIN exercises e ON e.id = ws.exercise_id
+		WHERE w.user_id = $1
+		  AND w.completed_at IS NOT NULL
+		  AND ws.reps IS NOT NULL AND ws.reps > 0
+		  AND ws.weight_kg IS NOT NULL AND ws.weight_kg > 0
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
+}
+
 func (r *Repository) FinishWorkoutTx(ctx context.Context, tx pgx.Tx, workoutID string, completedAt time.Time, notes *string, volume float64, durationSec int, stats FinishStats) error {
 	b, err := json.Marshal(stats)
 	if err != nil {

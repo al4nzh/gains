@@ -29,6 +29,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, requireAuth, limiter gin.Handler
 	g.GET("", h.listRoutines)
 	g.GET("/:id", h.getRoutine)
 	g.PUT("/:id", h.updateRoutine)
+	g.DELETE("/:id", h.deleteRoutine)
 	g.POST("/:id/exercises", h.addExercise)
 	g.PUT("/:id/exercises/:routineExerciseId", h.updateExercise)
 	g.DELETE("/:id/exercises/:routineExerciseId", h.deleteExercise)
@@ -122,6 +123,20 @@ func (h *Handler) updateRoutine(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, detail)
+}
+
+func (h *Handler) deleteRoutine(c *gin.Context) {
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+		return
+	}
+	rid := strings.TrimSpace(c.Param("id"))
+	if err := h.svc.DeleteRoutine(c.Request.Context(), userID, rid); err != nil {
+		mapRoutineErr(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 type addExerciseBody struct {

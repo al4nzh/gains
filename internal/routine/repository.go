@@ -94,6 +94,17 @@ func (r *Repository) GetRoutineForUser(ctx context.Context, userID, routineID st
 	return &out, nil
 }
 
+func (r *Repository) DeleteRoutine(ctx context.Context, userID, routineID string) error {
+	tag, err := r.pool.Exec(ctx, `DELETE FROM routines WHERE id = $1 AND user_id = $2`, routineID, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *Repository) UpdateRoutineMeta(ctx context.Context, userID, routineID, name string, description *string) error {
 	tag, err := r.pool.Exec(ctx, `
 		UPDATE routines SET name = $1, description = $2, updated_at = NOW()

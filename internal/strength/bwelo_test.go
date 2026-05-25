@@ -6,6 +6,15 @@ import (
 )
 
 // Same multiple of reference e1RM/BW for bench vs deadlift → same normalized contribution.
+func TestDistinctBenchmarkFamiliesFromNames(t *testing.T) {
+	n := DistinctBenchmarkFamiliesFromNames([]string{
+		"Bench Press", "Incline Bench Press", "Squat", "bench press",
+	})
+	if n != 2 {
+		t.Fatalf("families=%d want 2 (bench + squat)", n)
+	}
+}
+
 func TestBenchmarkSessionScoreBW_perLiftNormalization(t *testing.T) {
 	bw := 100.0
 	names := map[string]string{

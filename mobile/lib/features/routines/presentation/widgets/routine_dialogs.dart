@@ -133,18 +133,23 @@ class _EditRoutineDialogState extends State<_EditRoutineDialog> {
   }
 }
 
-Future<bool> confirmDelete(BuildContext context, String message) async {
+Future<bool> confirmDelete(
+  BuildContext context,
+  String message, {
+  String title = 'Remove exercise?',
+  String confirmLabel = 'Remove',
+}) async {
   final result = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Remove exercise?'),
+      title: Text(title),
       content: Text(message),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
           style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
-          child: const Text('Remove'),
+          child: Text(confirmLabel),
         ),
       ],
     ),

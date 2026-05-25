@@ -191,6 +191,10 @@ func (s *Service) UpdateRoutineExercise(ctx context.Context, userID, routineID, 
 	return s.repo.UpdateRoutineExercise(ctx, routineID, rowID, p)
 }
 
+func (s *Service) DeleteRoutine(ctx context.Context, userID, routineID string) error {
+	return s.repo.DeleteRoutine(ctx, userID, routineID)
+}
+
 func (s *Service) DeleteRoutineExercise(ctx context.Context, userID, routineID, rowID string) error {
 	return s.repo.DeleteRoutineExercise(ctx, userID, routineID, rowID)
 }

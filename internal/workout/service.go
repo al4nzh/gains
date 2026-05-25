@@ -253,12 +253,24 @@ func (s *Service) FinishWorkout(ctx context.Context, userID, workoutID string, i
 	var eloStat FinishEloStat
 
 	if hasBW && len(bestThis) > 0 {
-		S, benchCount := strength.BenchmarkSessionScoreBW(bw, bestThis, names, 6.0)
-		if benchCount < 2 {
+		completedNames, err := s.repo.ListExerciseNamesFromCompletedWorkouts(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		sessionNames := make([]string, 0, len(names))
+		for _, n := range names {
+			sessionNames = append(sessionNames, n)
+		}
+		lifetimeBenchmarkFamilies := strength.DistinctBenchmarkFamiliesFromNames(append(completedNames, sessionNames...))
+		if lifetimeBenchmarkFamilies < 2 {
 			goto skipElo
 		}
-		delta := strength.EloDeltaFromSession(eloBefore, S)
-		after := strength.ClampElo(eloBefore + delta)
+
+		S, benchCount := strength.BenchmarkSessionScoreBW(bw, bestThis, names, 6.0)
+		if benchCount < 1 {
+			goto skipElo
+		}
+		after := strength.EloAfterFromBenchmarkSession(S)
 		rank := strength.RankLabel(after)
 
 		meta, _ := json.Marshal(map[string]any{
@@ -305,7 +317,8 @@ func (s *Service) FinishWorkout(ctx context.Context, userID, workoutID string, i
 	}
 
 skipElo:
-	// No Elo update path (missing bodyweight or no countable lifts for e1RM)
+	// No Elo update (missing bodyweight, fewer than 2 lifetime benchmark families,
+	// or no benchmark lifts with countable e1RM in this session)
 	sum30skip, _ := s.repo.SumEloDelta30d(ctx, userID)
 	stats.StrengthElo = &FinishEloStat{
 		Skipped:        true,

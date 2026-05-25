@@ -1,0 +1,279 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:gains/core/api/api_client.dart';
+import 'package:gains/core/api/api_exception.dart';
+import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
+import 'package:gains/features/workouts/data/workout_api.dart';
+import 'package:gains/features/workouts/models/finish_stats.dart';
+import 'package:gains/features/workouts/models/workout.dart';
+import 'package:gains/features/shell/shell_tab_refresh.dart';
+import 'package:provider/provider.dart';
+
+class WorkoutSummaryScreen extends StatefulWidget {
+  const WorkoutSummaryScreen({
+    super.key,
+    required this.workoutId,
+    this.initialStats,
+  });
+
+  final String workoutId;
+  final FinishStats? initialStats;
+
+  @override
+  State<WorkoutSummaryScreen> createState() => _WorkoutSummaryScreenState();
+}
+
+class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
+  Workout? _workout;
+  FinishStats? _stats;
+  String? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _stats = widget.initialStats;
+    if (_stats != null) _loading = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    if (_workout != null) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final api = WorkoutApi(context.read<ApiClient>());
+      final workout = await api.getWorkout(widget.workoutId);
+      if (!mounted) return;
+      setState(() {
+        _workout = workout;
+        _stats ??= workout.finishStats;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Could not load summary';
+        _loading = false;
+      });
+    }
+  }
+
+  void _leaveSummary() {
+    context.read<ShellTabRefresh>().bumpMany([ShellTab.home, ShellTab.train, ShellTab.progress]);
+    context.go('/train');
+  }
+
+  void _onPopInvoked(bool didPop) {
+    if (didPop) {
+      context.read<ShellTabRefresh>().bumpMany([ShellTab.home, ShellTab.train, ShellTab.progress]);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = _stats;
+    final workout = _workout;
+
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) => _onPopInvoked(didPop),
+      child: Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(workout?.displayName ?? 'Workout complete'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: _leaveSummary,
+        ),
+      ),
+      body: _buildBody(stats),
+      ),
+    );
+  }
+
+  Widget _buildBody(FinishStats? stats) {
+    if (_loading && stats == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null && stats == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              OutlinedButton(onPressed: _load, child: const Text('Retry')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (stats == null) {
+      return const Center(child: Text('No summary available'));
+    }
+
+    final elo = stats.strengthElo;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(
+          'Nice work!',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _StatCard(label: 'Volume', value: formatVolumeKg(stats.totalVolumeKg))),
+            const SizedBox(width: 8),
+            Expanded(child: _StatCard(label: 'Duration', value: formatDuration(stats.durationSeconds))),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _StatCard(label: 'Sets', value: '${stats.setCount}')),
+            const SizedBox(width: 8),
+            Expanded(child: _StatCard(label: 'Exercises', value: '${stats.exerciseCount}')),
+          ],
+        ),
+        if (elo != null && !elo.skipped) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Strength Elo',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Text(
+                    '${elo.after}',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    formatEloChange(elo.delta),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: elo.delta >= 0 ? Colors.greenAccent : AppColors.textSecondary,
+                        ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '30d ${formatEloChange(elo.change30d)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        if (stats.prs.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Personal records',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 8),
+          ...stats.prs.map(
+            (pr) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                title: Text(pr.exerciseName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                  'e1RM ${pr.previousBestE1rmKg.toStringAsFixed(1)} → ${pr.newBestE1rmKg.toStringAsFixed(1)} kg',
+                ),
+                leading: const Icon(Icons.emoji_events_outlined, color: AppColors.primary),
+              ),
+            ),
+          ),
+        ],
+        if (stats.e1rmByExercise.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Best e1RM this session',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 8),
+          ...stats.e1rmByExercise.map(
+            (e) => Card(
+              margin: const EdgeInsets.only(bottom: 6),
+              child: ListTile(
+                title: Text(e.exerciseName),
+                trailing: Text(
+                  '${e.bestE1rmKg.toStringAsFixed(1)} kg',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 24),
+        OutlinedButton(
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('AI analysis — coming soon')),
+            );
+          },
+          child: const Text('Analyze with AI'),
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton(
+          onPressed: _leaveSummary,
+          child: const Text('Back to Train'),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
+            const SizedBox(height: 4),
+            Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
+}

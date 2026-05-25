@@ -133,6 +133,15 @@ func (r *ActionRepository) MarkApplied(ctx context.Context, userID, actionID str
 	return a, nil
 }
 
+func (r *ActionRepository) RejectPendingBySource(ctx context.Context, userID, sourceType, sourceID string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE ai_actions
+		SET status = $4, resolved_at = NOW()
+		WHERE user_id = $1::uuid AND source_type = $2 AND source_id = $3::uuid AND status = $5`,
+		userID, sourceType, sourceID, actionengine.StatusRejected, actionengine.StatusPending)
+	return err
+}
+
 type scannable interface {
 	Scan(dest ...any) error
 }

@@ -44,7 +44,7 @@ func (r *Repository) Upsert(ctx context.Context, in UpsertInput) (*Checkin, erro
 		RETURNING ` + checkinCols
 	row := r.pool.QueryRow(ctx, q,
 		in.UserID,
-		in.CheckinDate.Format("2006-01-02"),
+		formatLogicalDate(in.CheckinDate),
 		in.SleepHours,
 		in.EnergyReadiness,
 		in.CaloriesKcal,
@@ -52,6 +52,19 @@ func (r *Repository) Upsert(ctx context.Context, in UpsertInput) (*Checkin, erro
 		in.Notes,
 	)
 	return scanCheckin(row)
+}
+
+func (r *Repository) GetByDate(ctx context.Context, userID string, checkinDate time.Time) (*Checkin, error) {
+	const q = `SELECT ` + checkinCols + ` FROM recovery_checkins WHERE user_id = $1 AND checkin_date = $2::date`
+	row := r.pool.QueryRow(ctx, q, userID, formatLogicalDate(checkinDate))
+	c, err := scanCheckin(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return c, nil
 }
 
 func (r *Repository) GetLatest(ctx context.Context, userID string) (*Checkin, error) {
@@ -73,7 +86,7 @@ func (r *Repository) ListByDateRange(ctx context.Context, userID string, from, t
 		FROM recovery_checkins
 		WHERE user_id = $1 AND checkin_date >= $2::date AND checkin_date <= $3::date
 		ORDER BY checkin_date ASC`
-	rows, err := r.pool.Query(ctx, q, userID, from.Format("2006-01-02"), to.Format("2006-01-02"))
+	rows, err := r.pool.Query(ctx, q, userID, formatLogicalDate(from), formatLogicalDate(to))
 	if err != nil {
 		return nil, err
 	}

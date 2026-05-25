@@ -7,6 +7,12 @@ import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/home/data/home_api.dart';
 import 'package:gains/features/home/models/home_summary.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
+import 'package:gains/features/recovery/data/recovery_api.dart';
+import 'package:gains/features/recovery/models/recovery_checkin.dart';
+import 'package:gains/features/recovery/presentation/widgets/daily_readiness_card.dart';
+import 'package:gains/features/recovery/utils/local_checkin_date.dart';
+import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
+import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,13 +22,33 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
   HomeApi? _homeApi;
+  RecoveryApi? _recoveryApi;
   HomeSummary? _data;
+  RecoveryCheckinStatus? _readinessStatus;
   String? _error;
   bool _loading = true;
+  bool _readinessDismissedSession = false;
+
+  @override
+  int get shellTabIndex => ShellTab.home;
+
+  @override
+  void onShellTabRefresh() => _load(silent: true);
 
   HomeApi get homeApi => _homeApi ??= HomeApi(context.read<ApiClient>());
+  RecoveryApi get recoveryApi => _recoveryApi ??= RecoveryApi(context.read<ApiClient>());
+
+  String get _todayLocal => LocalCheckinDate.today();
+
+  bool get _shouldShowReadinessCard {
+    if (_readinessDismissedSession) return false;
+    if (LocalCheckinDate.isBefore5Am()) return false;
+    final status = _readinessStatus;
+    if (status == null) return false;
+    return status.shouldPrompt && !status.hasCheckinToday;
+  }
 
   @override
   void initState() {
@@ -30,16 +56,27 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final data = await homeApi.fetchHome();
+      RecoveryCheckinStatus? readiness;
+      if (!_readinessDismissedSession && !LocalCheckinDate.isBefore5Am()) {
+        try {
+          readiness = await recoveryApi.getStatus(_todayLocal);
+        } catch (_) {
+          readiness = null;
+        }
+      }
       if (!mounted) return;
       setState(() {
         _data = data;
+        _readinessStatus = readiness;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -57,10 +94,27 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _stubAction(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+  void _onQuickAction(String label) {
+    switch (label) {
+      case 'Start workout':
+        context.push('/train/start');
+      case 'Coach':
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$label — coming soon')),
+        );
+    }
+  }
+
+  void _dismissReadiness() {
+    setState(() => _readinessDismissedSession = true);
+  }
+
+  void _onReadinessSubmitted() {
+    setState(() {
+      _readinessDismissedSession = true;
+      _readinessStatus = null;
+    });
+    _load(silent: true);
   }
 
   @override
@@ -104,7 +158,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBody(BuildContext context) {
     if (_loading && _data == null) {
-      return const Center(child: CircularProgressIndicator());
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
+          const Center(child: CircularProgressIndicator()),
+        ],
+      );
     }
     if (_error != null && _data == null) {
       return ListView(
@@ -128,10 +188,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final data = _data!;
+    final showReadiness = _shouldShowReadinessCard;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
+        if (showReadiness) ...[
+          DailyReadinessCard(
+            checkinDate: _todayLocal,
+            defaultCalories: data.sharpness.targetKcal,
+            defaultProtein: data.sharpness.targetProteinG,
+            initialExpanded: false,
+            onSubmitted: _onReadinessSubmitted,
+            onDismissed: _dismissReadiness,
+          ),
+          const SizedBox(height: 12),
+        ],
         _EloCard(data: data),
         const SizedBox(height: 12),
         _SharpnessCard(sharpness: data.sharpness),
@@ -144,7 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 20),
         Text('Quick actions', style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 12),
-        _QuickActions(onAction: _stubAction),
+          _QuickActions(onAction: _onQuickAction),
       ],
     );
   }
@@ -492,24 +564,13 @@ class _QuickActions extends StatelessWidget {
           onTap: () => onAction('Start workout'),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.bedtime_outlined,
-                label: 'Check-in',
-                onTap: () => onAction('Check-in'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.chat_bubble_outline,
-                label: 'Coach',
-                onTap: () => onAction('Coach'),
-              ),
-            ),
-          ],
+        SizedBox(
+          width: double.infinity,
+          child: _ActionButton(
+            icon: Icons.chat_bubble_outline,
+            label: 'Coach',
+            onTap: () => onAction('Coach'),
+          ),
         ),
       ],
     );
@@ -532,10 +593,13 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (primary) {
-      return ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon),
-        label: Text(label),
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon),
+          label: Text(label),
+        ),
       );
     }
     return OutlinedButton.icon(

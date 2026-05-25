@@ -346,6 +346,16 @@ Update name and/or description. At least one of `name`, `description` must be pr
 
 ---
 
+### `DELETE /routines/:id`
+
+Permanently delete a routine owned by the caller. **`routine_exercises`** rows are removed (cascade). Past **`workouts`** that referenced this routine keep their history with **`routine_id`** set to **null**.
+
+**204:** no body
+
+**404:** not found or not owned by caller
+
+---
+
 ### `POST /routines/:id/exercises`
 
 Add a line to the routine.
@@ -535,10 +545,14 @@ Completes the workout, persists **volume**, **duration**, **stats** JSON, comput
 - `total_volume_kg`, `duration_seconds`, `set_count`, `exercise_count`
 - `e1rm_by_exercise`: `{ exercise_id, exercise_name, best_e1rm_kg }[]`
 - `prs`: `{ exercise_id, exercise_name, previous_best_e1rm_kg, new_best_e1rm_kg }[]` (only lifts that beat historical e1RM)
-- `strength_elo`: updated when **profile `weight_kg` > 0** and the finished session includes **≥ 2 benchmark lifts** with a countable e1RM.
+- `strength_elo`: updated when **profile `weight_kg` > 0**, the user has logged **≥ 2 distinct benchmark lift families ever**, and **this session** includes **≥ 1 benchmark lift** with a countable e1RM.
   - Benchmarks (by exercise name): `Bench Press`, `Squat`, `Deadlift`, `OHP` / `Overhead Press`, `Barbell Row` / `Pendlay Row`
-  - `before`, `after`, `delta`, `change_30d` (sum of Elo deltas from `strength_elo_history` in the last 30 days), `bodyweight_kg`, `session_score_bw` (average of per-benchmark normalized strength: `(e1RM / bodyweight) / refLift`, each term capped, then averaged; `refLift` is a fixed reference ratio per benchmark so typical deadlift kg/BW does not automatically outweigh bench)
-- If bodyweight is missing, there are no valid weighted sets for e1RM, **or fewer than 2 benchmark lifts are present**: `strength_elo.skipped: true`, Elo unchanged, no new `strength_elo_history` row.
+  - Only benchmark lifts logged **in the finished session** contribute to `session_score_bw`.
+  - **No per-session cap:** Elo is set from this finish’s benchmark strength: `strength_elo.after = clamp(1000 + 280×(session_score_bw − 1))` (global bounds **100–3600** only). Same normalized performance → same rating for every user.
+  - Weaker benchmark work in a finish (e.g. 140 kg vs 150 kg bench) lowers `session_score_bw` and **immediately** lowers Elo.
+  - `session_score_bw`: average `(e1RM/bodyweight)/refLift` for benchmarks logged in this session only.
+  - `before`, `after`, `delta`, `change_30d`, `bodyweight_kg`
+- If bodyweight is missing, the user has logged fewer than **2 benchmark families lifetime**, or **this session** has no countable benchmark sets: `strength_elo.skipped: true`, Elo unchanged, no new `strength_elo_history` row.
 
 Also writes `workouts.stats` JSON and, when Elo runs, appends **`strength_elo_history`** and upserts **`profiles`** strength Elo fields.
 
@@ -546,11 +560,19 @@ Also writes `workouts.stats` JSON and, when Elo runs, appends **`strength_elo_hi
 
 ---
 
-## Recovery check-ins
+## Recovery check-ins (Daily Readiness)
 
 **Auth:** required · **Rate limit:** `RECOVERY_RATE_LIMIT_*` (defaults 15 RPS / 30 burst)
 
-Daily (per calendar date, **UTC**) log: **sleep hours**, **energy / readiness** (1–5), **calories**, **protein (g)**, optional **notes**. Same-day `POST` **upserts** that row.
+**Daily Readiness** captures:
+
+- **Last night's sleep** (`sleep_hours`)
+- **Today's energy / readiness** (`energy_readiness`, 1–5)
+- **Yesterday's nutrition** (`calories_kcal`, `protein_g`)
+
+One row per user per **calendar date**. The client sends the user's **local** `YYYY-MM-DD`; the server stores that logical date as-is (no timezone conversion on the day). Same-day `POST` **upserts** (unique on `user_id`, `checkin_date`).
+
+**Prompt timing** (e.g. only after 5:00 local, dismissible card) is **frontend-owned**. The backend stores, validates, upserts, serves history, and feeds **sharpness** on home/analytics.
 
 ### `POST /recovery-checkins`
 
@@ -567,14 +589,14 @@ Daily (per calendar date, **UTC**) log: **sleep hours**, **energy / readiness** 
 }
 ```
 
-- `checkin_date`: optional `YYYY-MM-DD`; default **today UTC**
+- `checkin_date`: optional `YYYY-MM-DD` (**local calendar date** from the client); default **today UTC** when omitted
 - `sleep_hours`: **required**, **0–24**
-- `energy_readiness`: **required**, integer **1–5** (how ready / energetic you feel)
+- `energy_readiness`: **required**, integer **1–5**
 - `calories_kcal`: **required**, **0–20000**
 - `protein_g`: **required**, **0–800** (grams)
 - `notes`: optional, ≤ **2000** chars
 
-**201:** saved check-in (same shape as list items).
+**201:** saved check-in (same shape as list items). Re-posting the same `checkin_date` updates that row.
 
 ### `GET /recovery-checkins/latest`
 
@@ -582,12 +604,32 @@ Daily (per calendar date, **UTC**) log: **sleep hours**, **energy / readiness** 
 
 **404:** `{ "error": "no check-ins yet" }`
 
+### `GET /recovery-checkins/status?checkin_date=YYYY-MM-DD`
+
+Readiness state for a single calendar date (pass the user's **local today** from the app).
+
+- `checkin_date`: optional; default **today UTC** when omitted
+
+**200:**
+
+```json
+{
+  "checkin_date": "2026-05-12",
+  "has_checkin_today": true,
+  "should_prompt": false,
+  "checkin": { "...": "..." }
+}
+```
+
+When no row exists for that date, `has_checkin_today` is **false**, `should_prompt` is **true**, `checkin` is **null**.  
+`should_prompt` is a simple backend hint (`!has_checkin_today`); the app must still apply local rules (e.g. not before 5:00 AM, dismiss/skip state).
+
 ### `GET /recovery-checkins?from=&to=`
 
-Query params (each optional `YYYY-MM-DD`):
+Query params (each optional `YYYY-MM-DD`, **local calendar dates** from the client):
 
 - `from` — default **29 days before** `to` (inclusive 30-day window with `to`)
-- `to` — default **today UTC**
+- `to` — default **today UTC** when omitted
 
 **400:** invalid dates or `from` after `to`
 
@@ -677,7 +719,7 @@ Multi-turn **coach chat**. On a **new** conversation (omit **`conversation_id`**
 
 **Body:** `{ "message": "...", "conversation_id"?: "uuid" }`
 
-Coach context includes **`active_routines`** with **`routine_exercise_id`** per line (for safe edits). The model returns JSON with a user-visible **`message`** and optional **`proposed_actions`**. Valid actions are stored in **`ai_actions`** as **`pending`** (never auto-applied). Invalid or ambiguous exercise names are dropped; **`clarification`** may be returned when the catalog match is unclear.
+Coach context includes **`active_routines`** with **`routine_exercise_id`** per line (for safe edits). The model returns JSON with a user-visible **`message`** and optional **`proposed_actions`** (up to **8** per reply — **one action per requested edit**). Valid actions are stored in **`ai_actions`** as **`pending`** (never auto-applied). Invalid actions are dropped silently; ambiguous exercise names may return **`clarification`**. Use exact **`routine_id`** / **`routine_exercise_id`** from context or actions fail validation.
 
 **200:** `{ "conversation_id", "assistant": { ... }, "proposed_actions"?: [ ... ], "clarification"?: { "clarification_required", "message", "possible_matches" } }`
 
@@ -714,6 +756,14 @@ List coach threads for the user (**no** OpenAI). Query **`limit`** (default **30
 User/assistant messages only (**no** OpenAI, system context omitted). **404** if not yours.
 
 **200:** `{ "conversation_id", "messages": [ ... ] }`
+
+### `DELETE /ai/chat/conversations/:conversationId`
+
+Delete a coach thread owned by the caller. All **`coach_messages`** for that thread are removed (cascade). Any **pending** **`ai_actions`** with `source_type` **`chat`** and this conversation id are marked **rejected**.
+
+**204:** no body
+
+**404:** conversation not found or not yours
 
 **Database:** migration **`000013_coach_chat`** — tables **`coach_conversations`**, **`coach_messages`**.
 

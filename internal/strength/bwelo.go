@@ -1,9 +1,6 @@
 package strength
 
-import (
-	"math"
-	"strings"
-)
+import "strings"
 
 // Estimate1RMBrzycki returns estimated 1RM (kg). Invalid input returns 0.
 func Estimate1RMBrzycki(weightKg float64, reps int) float64 {
@@ -35,6 +32,20 @@ var benchmarkRefRatioBW = map[BenchmarkLift]float64{
 	BenchmarkDeadlift:      2.15,
 	BenchmarkOverheadPress: 0.70,
 	BenchmarkBarbellRow:    1.00,
+}
+
+// DistinctBenchmarkFamiliesFromNames counts how many benchmark lift families appear
+// in a list of exercise names (duplicates of the same family count once).
+func DistinctBenchmarkFamiliesFromNames(names []string) int {
+	seen := make(map[BenchmarkLift]struct{})
+	for _, name := range names {
+		lift, ok := BenchmarkLiftFromExerciseName(name)
+		if !ok {
+			continue
+		}
+		seen[lift] = struct{}{}
+	}
+	return len(seen)
 }
 
 // BenchmarkLiftFromExerciseName maps an exercise name to one of the benchmark lifts.
@@ -90,8 +101,6 @@ func BenchmarkSessionScoreBW(
 	namesByExerciseID map[string]string,
 	maxRawRatio float64,
 ) (float64, int) {
-	const maxNormContribution = 1.35
-
 	if bodyweightKg <= 0 || len(bestE1RMPerExercise) == 0 || len(namesByExerciseID) == 0 {
 		return 0, 0
 	}
@@ -109,17 +118,9 @@ func BenchmarkSessionScoreBW(
 		if !ok {
 			continue
 		}
-		ref, ok := benchmarkRefRatioBW[lift]
-		if !ok || ref <= 0 {
+		norm := BenchmarkNormScore(bodyweightKg, e1, lift, maxRawRatio)
+		if norm <= 0 {
 			continue
-		}
-		r := e1 / bodyweightKg
-		if r > maxRawRatio {
-			r = maxRawRatio
-		}
-		norm := r / ref
-		if norm > maxNormContribution {
-			norm = maxNormContribution
 		}
 		if cur, exists := bestNormByLift[lift]; !exists || norm > cur {
 			bestNormByLift[lift] = norm
@@ -134,30 +135,6 @@ func BenchmarkSessionScoreBW(
 		sum += n
 	}
 	return sum / float64(len(bestNormByLift)), len(bestNormByLift)
-}
-
-// EloDeltaFromSession maps benchmark-normalized session score vs current Elo to an Elo change.
-// sessionScore is the average of per-benchmark (e1RM/BW)/ref ratios (each capped); ~1.0 means
-// "at reference" on the lifts you did. Higher Elo raises par so you need stronger normalized work to gain.
-func EloDeltaFromSession(currentElo int, sessionScore float64) int {
-	const kFactor = 72.0
-	par := 0.94 + float64(currentElo-1000)*0.00022
-	if par < 0.82 {
-		par = 0.82
-	}
-	if par > 1.18 {
-		par = 1.18
-	}
-	raw := kFactor * (sessionScore - par)
-	delta := int(math.Round(raw))
-	const maxStep = 42
-	if delta > maxStep {
-		delta = maxStep
-	}
-	if delta < -maxStep {
-		delta = -maxStep
-	}
-	return delta
 }
 
 // ClampElo keeps rating in a sane band.

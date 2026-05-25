@@ -136,6 +136,7 @@ Bottom tabs:
 **API:** `GET /routines/:id` — ordered exercises with targets (sets, rep min/max, rest).
 
 - Edit name/description: `PUT /routines/:id`
+- Delete routine: `DELETE /routines/:id`
 - Add exercise: search catalog → `POST /routines/:id/exercises`
 - Edit line: `PUT /routines/:id/exercises/:routineExerciseId`
 - Remove line: `DELETE ...`
@@ -163,18 +164,32 @@ Requires profile filled (goal, experience, etc.) for best results.
 
 ---
 
-## 5. Recovery
+## 5. Recovery (Daily Readiness)
+
+**Meaning:** last night's sleep, today's energy, yesterday's nutrition.
+
+### Daily Readiness card (Home)
+
+**Prompt logic (frontend only):**
+
+- Show card when **local time ≥ 5:00 AM** and **no check-in for today's local date**
+- Card is dismissible / skippable (persist dismiss in local storage)
+- Do **not** use rolling 24h windows
+
+**API:** `GET /recovery-checkins/status?checkin_date=YYYY-MM-DD` — pass **local today**; use `has_checkin_today` + local 5 AM rule for UI. `should_prompt` is a hint (`!has_checkin_today`); full gating stays on the client.
 
 ### Screen: Daily check-in
 
 **API:** `POST /recovery-checkins`
 
-- sleep_hours, energy_readiness (1–10), calories_kcal, protein_g, notes, checkin_date
+- `checkin_date` — **local** `YYYY-MM-DD` (required from app for correct day boundary)
+- `sleep_hours`, `energy_readiness` (1–5), `calories_kcal`, `protein_g`, `notes`
+- Same-day POST **upserts** (one row per date)
 
 ### Screen: Latest / history
 
 - `GET /recovery-checkins/latest`
-- `GET /recovery-checkins?from=&to=` for charts (optional MVP: show latest only).
+- `GET /recovery-checkins?from=&to=` — pass **local** date bounds for charts
 
 ---
 
@@ -198,6 +213,7 @@ Requires profile filled (goal, experience, etc.) for best results.
 - Continue: same with `"conversation_id"`.
 - List threads: `GET /ai/chat/conversations`
 - History: `GET /ai/chat/conversations/:id/messages`
+- Delete thread: `DELETE /ai/chat/conversations/:id`
 
 **Response may include:**
 

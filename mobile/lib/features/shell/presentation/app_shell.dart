@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/features/shell/shell_tab_refresh.dart';
+import 'package:provider/provider.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
-  void _onTab(int index) {
+  void _onTab(BuildContext context, int index) {
     navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex);
+    context.read<ShellTabRefresh>().bump(index);
   }
 
   @override
@@ -18,7 +21,7 @@ class AppShell extends StatelessWidget {
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: _onTab,
+        onDestinationSelected: (index) => _onTab(context, index),
         backgroundColor: AppColors.surface,
         indicatorColor: AppColors.primaryMuted.withValues(alpha: 0.4),
         destinations: const [

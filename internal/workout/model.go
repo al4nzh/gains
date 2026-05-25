@@ -70,7 +70,7 @@ type FinishEloStat struct {
 	Change30d      int     `json:"change_30d"`
 	BodyweightKg   float64 `json:"bodyweight_kg"`
 	SessionScoreBW float64 `json:"session_score_bw"`
-	Skipped        bool    `json:"skipped,omitempty"` // true if no bodyweight → no Elo change
+	Skipped        bool    `json:"skipped,omitempty"` // true when Elo was not updated this finish
 }
 
 func (w *Workout) IsComplete() bool {

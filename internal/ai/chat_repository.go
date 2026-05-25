@@ -82,6 +82,19 @@ func (r *ChatRepository) ListConversations(ctx context.Context, userID string, l
 	return out, rows.Err()
 }
 
+func (r *ChatRepository) DeleteConversationForUser(ctx context.Context, userID, conversationID string) error {
+	tag, err := r.pool.Exec(ctx, `
+		DELETE FROM coach_conversations
+		WHERE id = $1::uuid AND user_id = $2::uuid`, conversationID, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrConversationNotFound
+	}
+	return nil
+}
+
 func (r *ChatRepository) InsertMessage(ctx context.Context, conversationID, role, content string) (*CoachMessage, error) {
 	row := r.pool.QueryRow(ctx, `
 		INSERT INTO coach_messages (conversation_id, role, content)

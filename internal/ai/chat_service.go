@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"strings"
+
+	"gainsai/internal/actionengine"
 )
 
 // Chat sends a user message and returns the assistant reply. New conversations receive coach context once.
@@ -87,6 +89,9 @@ func (s *Service) Chat(ctx context.Context, userID string, req ChatRequest) (*Ch
 	if err != nil {
 		return nil, err
 	}
+	if len(parsed.ProposedActions) > 0 && len(proposed) == 0 && clar == nil {
+		clar = actionsCouldNotBeAppliedClarification()
+	}
 
 	return &ChatResponse{
 		ConversationID:  convID,
@@ -128,4 +133,22 @@ func (s *Service) GetChatMessages(ctx context.Context, userID, conversationID st
 		ConversationID: conversationID,
 		Messages:       msgs,
 	}, nil
+}
+
+// DeleteChatConversation removes a coach thread and its messages. Pending actions from that chat are rejected.
+func (s *Service) DeleteChatConversation(ctx context.Context, userID, conversationID string) error {
+	if s.chat == nil {
+		return errors.New("chat repository not configured")
+	}
+	conv, err := s.chat.GetConversationForUser(ctx, userID, conversationID)
+	if err != nil {
+		return err
+	}
+	if conv == nil {
+		return ErrConversationNotFound
+	}
+	if s.actions != nil {
+		_ = s.actions.RejectPendingBySource(ctx, userID, actionengine.SourceTypeChat, conversationID)
+	}
+	return s.chat.DeleteConversationForUser(ctx, userID, conversationID)
 }

@@ -27,6 +27,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, requireAuth, limiter gin.Handler
 	g.POST("/chat", h.chat)
 	g.GET("/chat/conversations", h.listChatConversations)
 	g.GET("/chat/conversations/:conversationId/messages", h.getChatMessages)
+	g.DELETE("/chat/conversations/:conversationId", h.deleteChatConversation)
 	g.GET("/actions/pending", h.listPendingActions)
 	g.POST("/actions/:id/accept", h.acceptAction)
 	g.POST("/actions/:id/reject", h.rejectAction)
@@ -264,4 +265,22 @@ func (h *Handler) getChatMessages(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, out)
+}
+
+func (h *Handler) deleteChatConversation(c *gin.Context) {
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+		return
+	}
+	convID := c.Param("conversationId")
+	if err := h.svc.DeleteChatConversation(c.Request.Context(), userID, convID); err != nil {
+		if errors.Is(err, ErrConversationNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "conversation not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

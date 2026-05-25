@@ -13,6 +13,13 @@ type coachChatLLMResponse struct {
 	ProposedActions  []proposedAction `json:"proposed_actions"`
 }
 
+func actionsCouldNotBeAppliedClarification() *actionengine.Clarification {
+	return &actionengine.Clarification{
+		Required: true,
+		Message: "Those changes could not be turned into apply buttons. Use exact routine names from your app, catalog exercise names, and routine_id from your active routines.",
+	}
+}
+
 func parseCoachChatLLM(raw string) (coachChatLLMResponse, error) {
 	raw = stripJSONFences(strings.TrimSpace(raw))
 	var out coachChatLLMResponse
