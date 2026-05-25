@@ -5,12 +5,24 @@ import 'package:gains/features/ai/models/coach_action.dart';
 import 'package:gains/features/ai/models/coach_conversation.dart';
 import 'package:gains/features/ai/models/coach_message.dart';
 import 'package:gains/features/ai/models/routine_draft.dart';
+import 'package:gains/features/ai/models/workout_insight.dart';
 import 'package:gains/features/routines/models/routine.dart';
 
 class AiApi {
   AiApi(this._client);
 
   final ApiClient _client;
+
+  Future<WorkoutAnalysisInsight> analyzeWorkout(String workoutId) async {
+    try {
+      final response = await _client.dio.post<Map<String, dynamic>>(
+        '/ai/analyze-workout/$workoutId',
+      );
+      return WorkoutAnalysisInsight.fromJson(response.data!);
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
 
   Future<GenerateRoutinesResult> generateRoutines(String message) async {
     try {

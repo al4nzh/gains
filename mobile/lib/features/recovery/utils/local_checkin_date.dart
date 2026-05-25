@@ -8,6 +8,9 @@ class LocalCheckinDate {
     return format(now);
   }
 
+  /// `days` ago from now (local), as `YYYY-MM-DD`.
+  static String daysAgo(int days) => format(DateTime.now().subtract(Duration(days: days)));
+
   static String format(DateTime local) {
     final y = local.year;
     final m = local.month.toString().padLeft(2, '0');

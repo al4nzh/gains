@@ -7,12 +7,6 @@ import 'package:provider/provider.dart';
 class ProfileMenuScreen extends StatelessWidget {
   const ProfileMenuScreen({super.key});
 
-  void _stub(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature — coming soon')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AuthSession>();
@@ -45,17 +39,17 @@ class ProfileMenuScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.person_outline),
             title: const Text('Edit profile'),
-            onTap: () => _stub(context, 'Edit profile'),
+            onTap: () => context.push('/profile/edit'),
           ),
           ListTile(
             leading: const Icon(Icons.bedtime_outlined),
             title: const Text('Recovery log'),
-            onTap: () => _stub(context, 'Recovery log'),
+            onTap: () => context.push('/profile/recovery'),
           ),
           ListTile(
             leading: const Icon(Icons.camera_alt_outlined),
             title: const Text('Physique scans'),
-            onTap: () => _stub(context, 'Physique scans'),
+            onTap: () => context.push('/physique-scans'),
           ),
           const Divider(height: 1),
           ListTile(

@@ -75,6 +75,10 @@ class AuthSession extends ChangeNotifier {
   }
 
   Future<void> completeOnboarding(ProfileUpdate update) async {
+    await updateProfile(update);
+  }
+
+  Future<void> updateProfile(ProfileUpdate update) async {
     profile = await _profileApi.updateProfile(update);
     notifyListeners();
   }

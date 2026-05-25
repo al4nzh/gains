@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/features/ai/data/ai_api.dart';
+import 'package:gains/features/ai/models/workout_insight.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/finish_stats.dart';
@@ -27,8 +29,11 @@ class WorkoutSummaryScreen extends StatefulWidget {
 class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
   Workout? _workout;
   FinishStats? _stats;
+  WorkoutAnalysisInsight? _insight;
   String? _error;
   bool _loading = true;
+  bool _analyzing = false;
+  bool _insightExpanded = false;
 
   @override
   void initState() {
@@ -77,6 +82,42 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
   void _onPopInvoked(bool didPop) {
     if (didPop) {
       context.read<ShellTabRefresh>().bumpMany([ShellTab.home, ShellTab.train, ShellTab.progress]);
+    }
+  }
+
+  String _aiErrorMessage(ApiException e) {
+    if (e.statusCode == 503) return 'AI is unavailable (server needs OPENAI_API_KEY).';
+    if (e.statusCode == 400) return e.message;
+    return e.message;
+  }
+
+  Future<void> _analyzeWithAi() async {
+    if (_analyzing) return;
+
+    setState(() {
+      _analyzing = true;
+      _insightExpanded = true;
+    });
+
+    try {
+      final insight = await AiApi(context.read<ApiClient>()).analyzeWorkout(widget.workoutId);
+      if (!mounted) return;
+      setState(() {
+        _insight = insight;
+        _analyzing = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _analyzing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_aiErrorMessage(e))),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _analyzing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not analyze workout')),
+      );
     }
   }
 
@@ -235,14 +276,53 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
           ),
         ],
         const SizedBox(height: 24),
-        OutlinedButton(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('AI analysis — coming soon')),
-            );
-          },
-          child: const Text('Analyze with AI'),
+        Text(
+          'AI coach',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
         ),
+        const SizedBox(height: 8),
+        if (_insight != null && _insightExpanded) ...[
+          _WorkoutInsightCard(insight: _insight!),
+          const SizedBox(height: 8),
+        ],
+        if (_analyzing) ...[
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Analyzing your session…\nThis can take up to a minute.',
+                      style: TextStyle(color: AppColors.textSecondary, height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (_insight == null)
+          OutlinedButton.icon(
+            onPressed: _analyzing ? null : _analyzeWithAi,
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('Analyze with AI'),
+          )
+        else
+          TextButton(
+            onPressed: () => setState(() => _insightExpanded = !_insightExpanded),
+            child: Text(_insightExpanded ? 'Hide analysis' : 'Show analysis'),
+          ),
         const SizedBox(height: 8),
         ElevatedButton(
           onPressed: _leaveSummary,
@@ -250,6 +330,46 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
         ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+}
+
+class _WorkoutInsightCard extends StatelessWidget {
+  const _WorkoutInsightCard({required this.insight});
+
+  final WorkoutAnalysisInsight insight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppColors.primaryMuted.withValues(alpha: 0.12),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome, size: 20, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    insight.title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              insight.message,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.45),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

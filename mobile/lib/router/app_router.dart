@@ -7,6 +7,8 @@ import 'package:gains/features/auth/presentation/welcome_screen.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/home/presentation/home_screen.dart';
 import 'package:gains/features/profile/presentation/onboarding_screen.dart';
+import 'package:gains/features/profile/presentation/edit_profile_screen.dart';
+import 'package:gains/features/recovery/presentation/recovery_log_screen.dart';
 import 'package:gains/features/profile/presentation/profile_menu_screen.dart';
 import 'package:gains/features/routines/presentation/generate_routines_screen.dart';
 import 'package:gains/features/routines/presentation/routine_detail_screen.dart';
@@ -21,6 +23,9 @@ import 'package:gains/features/workouts/models/finish_stats.dart';
 import 'package:gains/features/workouts/presentation/active_workout_screen.dart';
 import 'package:gains/features/workouts/presentation/start_workout_screen.dart';
 import 'package:gains/features/workouts/presentation/train_screen.dart';
+import 'package:gains/features/physique/models/physique_scan.dart';
+import 'package:gains/features/physique/presentation/physique_scan_detail_screen.dart';
+import 'package:gains/features/physique/presentation/physique_scans_screen.dart';
 import 'package:gains/features/workouts/presentation/workout_summary_screen.dart';
 
 class AppRouter {
@@ -40,6 +45,33 @@ class AppRouter {
           path: '/profile',
           parentNavigatorKey: _rootNavigatorKey,
           builder: (_, _) => const ProfileMenuScreen(),
+          routes: [
+            GoRoute(
+              path: 'edit',
+              parentNavigatorKey: _rootNavigatorKey,
+              builder: (_, _) => const EditProfileScreen(),
+            ),
+            GoRoute(
+              path: 'recovery',
+              parentNavigatorKey: _rootNavigatorKey,
+              builder: (_, _) => const RecoveryLogScreen(),
+            ),
+          ],
+        ),
+        GoRoute(
+          path: '/physique-scans',
+          parentNavigatorKey: _rootNavigatorKey,
+          builder: (_, _) => const PhysiqueScansScreen(),
+          routes: [
+            GoRoute(
+              path: ':id',
+              parentNavigatorKey: _rootNavigatorKey,
+              builder: (_, state) => PhysiqueScanDetailScreen(
+                scanId: state.pathParameters['id']!,
+                initialScan: state.extra as PhysiqueScan?,
+              ),
+            ),
+          ],
         ),
         GoRoute(
           path: '/routine-templates',

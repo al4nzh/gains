@@ -99,9 +99,10 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
       case 'Start workout':
         context.push('/train/start');
       case 'Coach':
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label — coming soon')),
-        );
+        context.read<ShellTabRefresh>().bump(ShellTab.coach);
+        context.go('/coach');
+      case 'Body fat scan':
+        context.push('/physique-scans');
     }
   }
 
@@ -570,6 +571,15 @@ class _QuickActions extends StatelessWidget {
             icon: Icons.chat_bubble_outline,
             label: 'Coach',
             onTap: () => onAction('Coach'),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: _ActionButton(
+            icon: Icons.camera_alt_outlined,
+            label: 'Body fat scan',
+            onTap: () => onAction('Body fat scan'),
           ),
         ),
       ],

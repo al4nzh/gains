@@ -19,6 +19,24 @@ class RecoveryApi {
     }
   }
 
+  Future<List<RecoveryCheckin>> listCheckins({
+    required String from,
+    required String to,
+  }) async {
+    try {
+      final response = await _client.dio.get<Map<String, dynamic>>(
+        '/recovery-checkins',
+        queryParameters: {'from': from, 'to': to},
+      );
+      final list = response.data!['checkins'] as List<dynamic>? ?? [];
+      return list
+          .map((e) => RecoveryCheckin.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
   Future<RecoveryCheckin> submitCheckin(RecoveryCheckinInput input) async {
     try {
       final response = await _client.dio.post<Map<String, dynamic>>(
