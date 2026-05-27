@@ -27,6 +27,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, requireAuth, limiter gin.Handler
 	g.PUT("/:id/sets/:setId", h.updateSet)
 	g.DELETE("/:id/sets/:setId", h.deleteSet)
 	g.POST("/:id/finish", h.finish)
+	g.DELETE("/:id", h.discard)
 }
 
 type startWorkoutBody struct {
@@ -195,12 +196,34 @@ func (h *Handler) finish(c *gin.Context) {
 	c.JSON(http.StatusOK, stats)
 }
 
+func (h *Handler) discard(c *gin.Context) {
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+		return
+	}
+	wid := strings.TrimSpace(c.Param("id"))
+	if err := h.svc.DiscardWorkout(c.Request.Context(), userID, wid); err != nil {
+		mapWorkoutErr(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func mapWorkoutErr(c *gin.Context, err error) {
 	if err == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
+	var activeConflict *ActiveWorkoutConflict
 	switch {
+	case errors.As(err, &activeConflict):
+		c.JSON(http.StatusConflict, gin.H{
+			"error":             activeConflict.Error(),
+			"active_workout_id": activeConflict.WorkoutID,
+		})
+	case errors.Is(err, ErrActiveWorkoutExists):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrExerciseNotFound), errors.Is(err, ErrSetNotFound), errors.Is(err, ErrRoutineNotYours):
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 	case errors.Is(err, ErrAlreadyFinished):

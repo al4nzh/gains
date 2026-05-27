@@ -1,3 +1,4 @@
+import 'package:gains/features/adaptive_recommendations/models/applied_adjustment.dart';
 import 'package:gains/features/workouts/models/finish_stats.dart';
 import 'package:gains/features/workouts/models/workout_set.dart';
 
@@ -12,6 +13,7 @@ class Workout {
     this.durationSeconds,
     this.finishStats,
     required this.sets,
+    this.adaptiveAdjustments = const [],
   });
 
   final String id;
@@ -23,6 +25,7 @@ class Workout {
   final int? durationSeconds;
   final FinishStats? finishStats;
   final List<WorkoutSet> sets;
+  final List<AppliedAdjustment> adaptiveAdjustments;
 
   bool get isInProgress => completedAt == null;
 
@@ -47,6 +50,10 @@ class Workout {
         return a.setNumber.compareTo(b.setNumber);
       });
 
+    final adjustments = (json['adaptive_adjustments'] as List<dynamic>? ?? [])
+        .map((e) => AppliedAdjustment.fromJson(e as Map<String, dynamic>))
+        .toList();
+
     return Workout(
       id: json['id'] as String,
       routineId: json['routine_id'] as String?,
@@ -59,6 +66,7 @@ class Workout {
       durationSeconds: json['duration_seconds'] as int?,
       finishStats: stats,
       sets: sets,
+      adaptiveAdjustments: adjustments,
     );
   }
 }

@@ -92,9 +92,9 @@ func ImpliedEloFromSessionScore(sessionScore float64) int {
 	return ClampElo(int(math.Round(1000 + 280*(sessionScore-1.0))))
 }
 
-// EloAfterFromBenchmarkSession sets strength rating directly from this session's benchmark
-// work so the same normalized performance maps to the same Elo for every user (only global
-// clamp 100–3600). Weaker finishes (lower session score) immediately lower Elo.
-func EloAfterFromBenchmarkSession(sessionScore float64) int {
-	return ImpliedEloFromSessionScore(sessionScore)
+// EloAfterFromBenchmarkNorms sets strength rating from lifetime-best norms per benchmark family
+// (average across families). A single-lift day does not reset Elo to only that lift.
+func EloAfterFromBenchmarkNorms(normsByLift map[BenchmarkLift]float64) int {
+	avg, _ := AverageBenchmarkNorms(normsByLift)
+	return ImpliedEloFromSessionScore(avg)
 }

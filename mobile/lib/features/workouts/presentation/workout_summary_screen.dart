@@ -6,9 +6,12 @@ import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/ai/data/ai_api.dart';
 import 'package:gains/features/ai/models/workout_insight.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
+import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/finish_stats.dart';
 import 'package:gains/features/workouts/models/workout.dart';
+import 'package:gains/features/workouts/presentation/muscle_group_mapping.dart';
+import 'package:gains/features/workouts/presentation/widgets/session_muscles_diagram.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
 
@@ -29,6 +32,7 @@ class WorkoutSummaryScreen extends StatefulWidget {
 class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
   Workout? _workout;
   FinishStats? _stats;
+  Map<String, String> _exerciseMuscleGroup = {};
   WorkoutAnalysisInsight? _insight;
   String? _error;
   bool _loading = true;
@@ -51,12 +55,19 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
       _error = null;
     });
     try {
-      final api = WorkoutApi(context.read<ApiClient>());
-      final workout = await api.getWorkout(widget.workoutId);
+      final client = context.read<ApiClient>();
+      final api = WorkoutApi(client);
+      final workoutFuture = api.getWorkout(widget.workoutId);
+      final muscleFuture = ExerciseApi(client)
+          .loadMuscleGroupMap()
+          .catchError((_) => <String, String>{});
+      final workout = await workoutFuture;
+      final muscleMap = await muscleFuture;
       if (!mounted) return;
       setState(() {
         _workout = workout;
         _stats ??= workout.finishStats;
+        _exerciseMuscleGroup = muscleMap;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -166,6 +177,23 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
     }
 
     final elo = stats.strengthElo;
+    final sessionWorkout = _workout;
+    final highlighted = highlightedMusclesForSession(
+      stats: stats,
+      workout: sessionWorkout,
+      exerciseIdToMuscleGroup: _exerciseMuscleGroup,
+    );
+    final rawGroups = <String>{};
+    for (final e in stats.e1rmByExercise) {
+      final g = _exerciseMuscleGroup[e.exerciseId];
+      if (g != null && g.isNotEmpty) rawGroups.add(g);
+    }
+    if (sessionWorkout != null) {
+      for (final s in sessionWorkout.sets) {
+        final g = _exerciseMuscleGroup[s.exerciseId];
+        if (g != null && g.isNotEmpty) rawGroups.add(g);
+      }
+    }
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -189,6 +217,11 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
             const SizedBox(width: 8),
             Expanded(child: _StatCard(label: 'Exercises', value: '${stats.exerciseCount}')),
           ],
+        ),
+        const SizedBox(height: 24),
+        SessionMusclesDiagram(
+          highlightedMuscles: highlighted,
+          trainedGroupLabels: trainedGroupLabelsFromIds(rawGroups),
         ),
         if (elo != null && !elo.skipped) ...[
           const SizedBox(height: 24),

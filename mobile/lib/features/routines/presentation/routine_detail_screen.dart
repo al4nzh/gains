@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/routines/data/routine_api.dart';
 import 'package:gains/features/routines/models/routine.dart';
 import 'package:gains/features/routines/models/routine_exercise.dart';
@@ -11,7 +12,10 @@ import 'package:gains/features/routines/presentation/widgets/add_exercise_sheet.
 import 'package:gains/features/routines/presentation/widgets/edit_exercise_sheet.dart';
 import 'package:gains/features/routines/presentation/widgets/routine_dialogs.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
+import 'package:gains/features/workouts/presentation/muscle_group_mapping.dart';
+import 'package:gains/features/workouts/presentation/widgets/session_muscles_diagram.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_body_part_selector/flutter_body_part_selector.dart';
 
 class RoutineDetailScreen extends StatefulWidget {
   const RoutineDetailScreen({super.key, required this.routineId});
@@ -25,6 +29,7 @@ class RoutineDetailScreen extends StatefulWidget {
 class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
   RoutineApi? _api;
   Routine? _routine;
+  Set<Muscle> _highlightedMuscles = {};
   String? _error;
   bool _loading = true;
 
@@ -42,10 +47,20 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
       _error = null;
     });
     try {
-      final routine = await api.getRoutine(widget.routineId);
+      final client = context.read<ApiClient>();
+      final routineFuture = api.getRoutine(widget.routineId);
+      final muscleMapFuture = ExerciseApi(client).loadMuscleGroupMap();
+      final routine = await routineFuture;
+      final muscleMap = await muscleMapFuture;
       if (!mounted) return;
+      final exerciseIds = routine.exercises.map((e) => e.exerciseId).toSet();
+      final highlighted = highlightedMusclesForExerciseIds(
+        exerciseIds: exerciseIds,
+        exerciseIdToMuscleGroup: muscleMap,
+      );
       setState(() {
         _routine = routine;
+        _highlightedMuscles = highlighted;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -223,6 +238,14 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
             Text(
               r.description!,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (r.exercises.isNotEmpty) ...[
+            SessionMusclesDiagram(
+              title: 'Muscles targeted by that routine',
+              highlightedMuscles: _highlightedMuscles,
+              trainedGroupLabels: const [],
             ),
             const SizedBox(height: 16),
           ],

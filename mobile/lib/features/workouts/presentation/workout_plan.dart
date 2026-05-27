@@ -1,3 +1,4 @@
+import 'package:gains/features/adaptive_recommendations/models/applied_adjustment.dart';
 import 'package:gains/features/analytics/models/exercise_detail.dart';
 import 'package:gains/features/routines/models/routine_exercise.dart';
 import 'package:gains/features/workouts/models/workout_set.dart';
@@ -93,6 +94,78 @@ List<WorkoutExercisePlan> buildWorkoutPlan({
   }
 
   return plans;
+}
+
+/// Applies session-only adjustments from POST /adaptive-recommendations/apply.
+List<WorkoutExercisePlan> applyAdaptiveAdjustments(
+  List<WorkoutExercisePlan> plan,
+  List<AppliedAdjustment> adjustments,
+) {
+  if (adjustments.isEmpty) return plan;
+
+  var next = [...plan];
+
+  for (final adj in adjustments) {
+    switch (adj.type) {
+      case 'swap_exercise':
+        final fromId = adj.targetExerciseId;
+        final toId = adj.change.replaceExerciseId;
+        final toName = adj.change.replaceExerciseName;
+        if (fromId == null || toId == null || toName == null || toName.isEmpty) {
+          continue;
+        }
+        final idx = next.indexWhere((p) => p.exerciseId == fromId);
+        if (idx == -1) continue;
+        final e = next[idx];
+        next[idx] = WorkoutExercisePlan(
+          exerciseId: toId,
+          exerciseName: toName,
+          targetSets: e.targetSets,
+          targetRepMin: e.targetRepMin,
+          targetRepMax: e.targetRepMax,
+          restSeconds: e.restSeconds,
+          notes: e.notes,
+          slots: e.slots,
+          lastBestSet: null,
+        );
+      case 'reduce_volume':
+        final delta = adj.change.setsDelta;
+        if (delta == null || delta >= 0) continue;
+        final targetId = adj.targetExerciseId;
+        if (targetId == null) continue;
+        next = next.map((p) {
+          if (p.exerciseId != targetId) return p;
+          final baseSets = p.targetSets ?? p.slots.length;
+          final newSets = (baseSets + delta).clamp(1, 99);
+          return _trimPlanSlots(p, newSets);
+        }).toList();
+      case 'reduce_intensity':
+        // Prefill adjustment is visual-only; user enters lower weight manually.
+        break;
+      case 'increase_weight':
+        break;
+      default:
+        break;
+    }
+  }
+
+  return next;
+}
+
+WorkoutExercisePlan _trimPlanSlots(WorkoutExercisePlan p, int newSetCount) {
+  final slots = [...p.slots]..sort((a, b) => a.setNumber.compareTo(b.setNumber));
+  final trimmed = slots.take(newSetCount).toList();
+  return WorkoutExercisePlan(
+    exerciseId: p.exerciseId,
+    exerciseName: p.exerciseName,
+    targetSets: newSetCount,
+    targetRepMin: p.targetRepMin,
+    targetRepMax: p.targetRepMax,
+    restSeconds: p.restSeconds,
+    notes: p.notes,
+    slots: trimmed,
+    lastBestSet: p.lastBestSet,
+  );
 }
 
 WorkoutExercisePlan _planForExercise({

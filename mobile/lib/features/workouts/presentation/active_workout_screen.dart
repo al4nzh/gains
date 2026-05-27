@@ -30,6 +30,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   Workout? _workout;
   List<WorkoutExercisePlan> _plan = [];
   final Map<String, ({String reps, String weight})> _drafts = {};
+  final Map<String, int> _extraSlotsByExerciseId = {};
+  final Map<String, String> _addedExerciseNamesById = {};
   String? _error;
   bool _loading = true;
   bool _finishing = false;
@@ -61,6 +63,107 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   void _onSetChanged(String exerciseId, int setNumber) {
     _clearDraft(exerciseId, setNumber);
     _load(silent: true);
+  }
+
+  void _addSetSlot(String exerciseId) {
+    setState(() {
+      final currentExtra = _extraSlotsByExerciseId[exerciseId] ?? 0;
+      _extraSlotsByExerciseId[exerciseId] = currentExtra + 1;
+
+      final idx = _plan.indexWhere((e) => e.exerciseId == exerciseId);
+      if (idx == -1) return;
+      final e = _plan[idx];
+      final existingMax = e.slots.isEmpty
+          ? 0
+          : e.slots.map((s) => s.setNumber).reduce((a, b) => a > b ? a : b);
+      final nextSlots = [
+        ...e.slots,
+        WorkoutSetSlot(
+          setNumber: existingMax + 1,
+          logged: null,
+          prefill: e.lastBestSet,
+        ),
+      ];
+      _plan = [..._plan]
+        ..[idx] = WorkoutExercisePlan(
+          exerciseId: e.exerciseId,
+          exerciseName: e.exerciseName,
+          targetSets: e.targetSets,
+          targetRepMin: e.targetRepMin,
+          targetRepMax: e.targetRepMax,
+          restSeconds: e.restSeconds,
+          notes: e.notes,
+          slots: nextSlots,
+          lastBestSet: e.lastBestSet,
+        );
+    });
+  }
+
+  List<WorkoutExercisePlan> _applyExtraSlots(List<WorkoutExercisePlan> plan) {
+    if (_extraSlotsByExerciseId.isEmpty) return plan;
+
+    return plan.map((e) {
+      final extra = _extraSlotsByExerciseId[e.exerciseId] ?? 0;
+      if (extra <= 0) return e;
+
+      final existingMax = e.slots.isEmpty
+          ? 0
+          : e.slots.map((s) => s.setNumber).reduce((a, b) => a > b ? a : b);
+      final desiredMax = existingMax + extra;
+      final nextSlots = [...e.slots];
+      for (var n = existingMax + 1; n <= desiredMax; n++) {
+        nextSlots.add(WorkoutSetSlot(
+          setNumber: n,
+          logged: null,
+          prefill: e.lastBestSet,
+        ));
+      }
+
+      return WorkoutExercisePlan(
+        exerciseId: e.exerciseId,
+        exerciseName: e.exerciseName,
+        targetSets: e.targetSets,
+        targetRepMin: e.targetRepMin,
+        targetRepMax: e.targetRepMax,
+        restSeconds: e.restSeconds,
+        notes: e.notes,
+        slots: nextSlots,
+        lastBestSet: e.lastBestSet,
+      );
+    }).toList();
+  }
+
+  List<WorkoutExercisePlan> _mergeAddedExercises(
+    List<WorkoutExercisePlan> plan,
+    Map<String, SetLoadSummary?> prefills,
+  ) {
+    if (_addedExerciseNamesById.isEmpty) return plan;
+
+    final existingIds = {for (final p in plan) p.exerciseId};
+    final next = [...plan];
+
+    for (final entry in _addedExerciseNamesById.entries) {
+      if (existingIds.contains(entry.key)) continue;
+      final prefill = prefills[entry.key];
+      next.add(
+        WorkoutExercisePlan(
+          exerciseId: entry.key,
+          exerciseName: entry.value,
+          targetSets: defaultTargetSets,
+          slots: List.generate(
+            defaultTargetSets,
+            (i) => WorkoutSetSlot(
+              setNumber: i + 1,
+              logged: null,
+              prefill: prefill,
+            ),
+          ),
+          lastBestSet: prefill,
+        ),
+      );
+    }
+
+    return next;
   }
 
   @override
@@ -95,22 +198,27 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
       final exerciseIds = <String>{
         ...?routineExercises?.map((e) => e.exerciseId),
         ...workout.sets.map((s) => s.exerciseId),
+        ..._addedExerciseNamesById.keys,
+        for (final adj in workout.adaptiveAdjustments)
+          if (adj.change.replaceExerciseId != null) adj.change.replaceExerciseId!,
       };
 
       final prefills = exerciseIds.isEmpty
           ? <String, SetLoadSummary?>{}
           : await AnalyticsApi(client).lastBestSetsForExercises(exerciseIds);
 
-      final plan = buildWorkoutPlan(
+      var plan = buildWorkoutPlan(
         routineExercises: routineExercises,
         loggedSets: workout.sets,
         prefills: prefills,
       );
+      plan = applyAdaptiveAdjustments(plan, workout.adaptiveAdjustments);
 
       if (!mounted) return;
       setState(() {
         _workout = workout;
-        _plan = plan;
+        // Merge in any locally-added exercises (no sets yet), then any extra slots.
+        _plan = _applyExtraSlots(_mergeAddedExercises(plan, prefills));
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -129,8 +237,35 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   }
 
   Future<void> _addExercise() async {
-    final added = await AddExerciseSheet.show(context, widget.workoutId);
-    if (added == true) _load();
+    final picked = await AddExerciseSheet.show(context, widget.workoutId);
+    if (picked == null || !mounted) return;
+    final ex = picked.exercise;
+    final prefill = picked.prefill;
+    if (_addedExerciseNamesById.containsKey(ex.id)) return;
+
+    setState(() {
+      _addedExerciseNamesById[ex.id] = ex.name;
+      _plan = [
+        ..._plan,
+        WorkoutExercisePlan(
+          exerciseId: ex.id,
+          exerciseName: ex.name,
+          targetSets: defaultTargetSets,
+          slots: List.generate(
+            defaultTargetSets,
+            (i) => WorkoutSetSlot(
+              setNumber: i + 1,
+              logged: null,
+              prefill: prefill,
+            ),
+          ),
+          lastBestSet: prefill,
+        ),
+      ];
+    });
+
+    // Refresh silently to fill last-best-set prefill if available.
+    _load(silent: true);
   }
 
   Future<void> _finish() async {
@@ -291,6 +426,19 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
               ),
               onChanged: () => _onSetChanged(exercise.exerciseId, slot.setNumber),
             ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => _addSetSlot(exercise.exerciseId),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add set'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.only(left: 4, right: 8),
+              ),
+            ),
+          ),
         ],
       ],
     );

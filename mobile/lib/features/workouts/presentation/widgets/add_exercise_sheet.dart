@@ -9,7 +9,6 @@ import 'package:gains/features/analytics/data/analytics_api.dart';
 import 'package:gains/features/analytics/models/exercise_detail.dart';
 import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/exercises/models/catalog_exercise.dart';
-import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/presentation/workout_plan.dart';
 import 'package:provider/provider.dart';
 
@@ -18,8 +17,11 @@ class AddExerciseSheet extends StatefulWidget {
 
   final String workoutId;
 
-  static Future<bool?> show(BuildContext context, String workoutId) {
-    return showModalBottomSheet<bool>(
+  static Future<({CatalogExercise exercise, SetLoadSummary? prefill})?> show(
+    BuildContext context,
+    String workoutId,
+  ) {
+    return showModalBottomSheet<({CatalogExercise exercise, SetLoadSummary? prefill})>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
@@ -39,8 +41,6 @@ class AddExerciseSheet extends StatefulWidget {
 
 class _AddExerciseSheetState extends State<AddExerciseSheet> {
   final _search = TextEditingController();
-  final _repsCtrls = List.generate(defaultTargetSets, (_) => TextEditingController());
-  final _weightCtrls = List.generate(defaultTargetSets, (_) => TextEditingController());
 
   Timer? _debounce;
   List<CatalogExercise> _results = [];
@@ -48,10 +48,8 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
   SetLoadSummary? _prefill;
   bool _searching = false;
   bool _loadingPrefill = false;
-  bool _saving = false;
 
   late final ExerciseApi _exerciseApi;
-  late final WorkoutApi _workoutApi;
   late final AnalyticsApi _analyticsApi;
 
   @override
@@ -59,7 +57,6 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
     super.didChangeDependencies();
     final client = context.read<ApiClient>();
     _exerciseApi = ExerciseApi(client);
-    _workoutApi = WorkoutApi(client);
     _analyticsApi = AnalyticsApi(client);
   }
 
@@ -67,25 +64,7 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
-    for (final c in _repsCtrls) {
-      c.dispose();
-    }
-    for (final c in _weightCtrls) {
-      c.dispose();
-    }
     super.dispose();
-  }
-
-  void _applyPrefill(SetLoadSummary? prefill) {
-    for (var i = 0; i < defaultTargetSets; i++) {
-      _repsCtrls[i].text = prefill?.reps?.toString() ?? '';
-      if (prefill?.weightKg != null) {
-        final w = prefill!.weightKg!;
-        _weightCtrls[i].text = w % 1 == 0 ? w.toInt().toString() : w.toString();
-      } else {
-        _weightCtrls[i].text = '';
-      }
-    }
   }
 
   Future<void> _selectExercise(CatalogExercise ex) async {
@@ -97,12 +76,10 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
       final detail = await _analyticsApi.getExerciseDetail(ex.id);
       if (!mounted) return;
       _prefill = detail.lastBestSet;
-      _applyPrefill(_prefill);
       setState(() => _loadingPrefill = false);
     } catch (_) {
       if (!mounted) return;
       _prefill = null;
-      _applyPrefill(null);
       setState(() => _loadingPrefill = false);
     }
   }
@@ -135,47 +112,15 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
     });
   }
 
-  Future<void> _saveAll() async {
-    if (_selected == null) {
+  void _addToWorkout() {
+    final ex = _selected;
+    if (ex == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pick an exercise from search')),
       );
       return;
     }
-
-    var logged = 0;
-    setState(() => _saving = true);
-    try {
-      for (var i = 0; i < defaultTargetSets; i++) {
-        final reps = int.tryParse(_repsCtrls[i].text.trim());
-        final weight = double.tryParse(_weightCtrls[i].text.trim());
-        if (reps == null || reps <= 0 || weight == null || weight <= 0) continue;
-
-        await _workoutApi.addSet(
-          widget.workoutId,
-          exerciseId: _selected!.id,
-          reps: reps,
-          weightKg: weight,
-          setNumber: i + 1,
-        );
-        logged++;
-      }
-
-      if (!mounted) return;
-      if (logged == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enter at least one set')),
-        );
-      } else {
-        Navigator.pop(context, true);
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    Navigator.pop(context, (exercise: ex, prefill: _prefill));
   }
 
   @override
@@ -248,39 +193,10 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
                   ),
                 ),
-              const SizedBox(height: 8),
-              for (var i = 0; i < defaultTargetSets; i++) ...[
-                Text(
-                  'Set ${i + 1}',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: GainsTextField(
-                        controller: _repsCtrls[i],
-                        label: 'Reps',
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: GainsTextField(
-                        controller: _weightCtrls[i],
-                        label: 'kg',
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-              ],
-              ElevatedButton(
-                onPressed: _saving ? null : _saveAll,
-                child: _saving
-                    ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Log sets'),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: _addToWorkout,
+                child: const Text('Add to workout'),
               ),
             ],
           ],

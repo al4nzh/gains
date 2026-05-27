@@ -3,10 +3,12 @@ package workout
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"math"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"gainsai/internal/exercise"
@@ -52,7 +54,44 @@ func (s *Service) StartWorkout(ctx context.Context, userID string, routineID *st
 			return nil, ErrRoutineNotYours
 		}
 	}
-	return s.repo.CreateWorkout(ctx, userID, routineID, name)
+	active, err := s.repo.GetActiveWorkoutForUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if active != nil {
+		return nil, &ActiveWorkoutConflict{WorkoutID: active.ID}
+	}
+	w, err := s.repo.CreateWorkout(ctx, userID, routineID, name)
+	if err != nil {
+		if isActiveWorkoutUniqueViolation(err) {
+			active, qErr := s.repo.GetActiveWorkoutForUser(ctx, userID)
+			if qErr != nil {
+				return nil, qErr
+			}
+			if active != nil {
+				return nil, &ActiveWorkoutConflict{WorkoutID: active.ID}
+			}
+			return nil, ErrActiveWorkoutExists
+		}
+		return nil, err
+	}
+	return w, nil
+}
+
+func isActiveWorkoutUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "idx_workouts_one_active_per_user"
+}
+
+func (s *Service) DiscardWorkout(ctx context.Context, userID, workoutID string) error {
+	w, err := s.repo.GetWorkoutForUser(ctx, userID, workoutID)
+	if err != nil {
+		return err
+	}
+	if w.IsComplete() {
+		return ErrAlreadyFinished
+	}
+	return s.repo.DeleteActiveWorkout(ctx, userID, workoutID)
 }
 
 func (s *Service) GetWorkout(ctx context.Context, userID, workoutID string) (*Workout, error) {
@@ -202,6 +241,11 @@ func (s *Service) FinishWorkout(ctx context.Context, userID, workoutID string, i
 	if err != nil {
 		return nil, err
 	}
+	// "Current form" snapshot for Elo: most recent completed session value per exercise (plus this session).
+	histLatest, err := s.repo.HistoricalLatestE1RMPerExercise(ctx, userID, workoutID, strength.Estimate1RMBrzycki)
+	if err != nil {
+		return nil, err
+	}
 
 	exIDs := make([]string, 0, len(bestThis))
 	for id := range bestThis {
@@ -266,17 +310,58 @@ func (s *Service) FinishWorkout(ctx context.Context, userID, workoutID string, i
 			goto skipElo
 		}
 
-		S, benchCount := strength.BenchmarkSessionScoreBW(bw, bestThis, names, 6.0)
-		if benchCount < 1 {
+		sessionOnly, benchInSession := strength.BenchmarkSessionScoreBW(bw, bestThis, names, 6.0)
+		if benchInSession < 1 {
 			goto skipElo
 		}
-		after := strength.EloAfterFromBenchmarkSession(S)
+
+		mergedE1 := make(map[string]float64, len(hist)+len(bestThis))
+		for id, e1 := range hist {
+			mergedE1[id] = e1
+		}
+		for id, e1 := range bestThis {
+			if e1 > mergedE1[id] {
+				mergedE1[id] = e1
+			}
+		}
+		mergedLatestE1 := make(map[string]float64, len(histLatest)+len(bestThis))
+		for id, e1 := range histLatest {
+			mergedLatestE1[id] = e1
+		}
+		for id, e1 := range bestThis {
+			// For "latest snapshot" Elo, today's value should overwrite the prior snapshot
+			// even when performance is lower.
+			mergedLatestE1[id] = e1
+		}
+		histIDs := make([]string, 0, len(mergedE1))
+		for id := range mergedE1 {
+			histIDs = append(histIDs, id)
+		}
+		mergedNames, err := s.exercise.GetNamesByIDs(ctx, histIDs)
+		if err != nil {
+			return nil, err
+		}
+
+		lifetimeNorms := strength.BestBenchmarkNormsByFamily(bw, mergedE1, mergedNames, 6.0)
+		latestNorms := strength.BestBenchmarkNormsByFamily(bw, mergedLatestE1, mergedNames, 6.0)
+
+		eloBasis := "latest_snapshot"
+		normsToUse := latestNorms
+		if len(normsToUse) < 2 {
+			goto skipElo
+		}
+
+		S, _ := strength.AverageBenchmarkNorms(normsToUse)
+		after := strength.EloAfterFromBenchmarkNorms(normsToUse)
 		rank := strength.RankLabel(after)
 
 		meta, _ := json.Marshal(map[string]any{
-			"volume":     stats.TotalVolumeKg,
-			"pr_count":   len(prs),
-			"session_bw": S,
+			"volume":            stats.TotalVolumeKg,
+			"pr_count":          len(prs),
+			"session_score_bw":  S,
+			"session_only_bw":   sessionOnly,
+			"lifetime_families": len(lifetimeNorms),
+			"elo_basis":         eloBasis,
 		})
 
 		tx, err := s.pool.Begin(ctx)

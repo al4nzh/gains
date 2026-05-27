@@ -155,6 +155,57 @@ func (r *Repository) ListRecentCompletedWorkoutSetsForProgression(ctx context.Co
 	return out, rows.Err()
 }
 
+// ListRecentCompletedWorkoutSetsForProgressionByRoutine is like ListRecentCompletedWorkoutSetsForProgression
+// but only includes completed workouts logged against the given routine_id.
+func (r *Repository) ListRecentCompletedWorkoutSetsForProgressionByRoutine(ctx context.Context, userID, routineID string, workoutLimit int) ([]ProgressionSetRow, error) {
+	if workoutLimit < 1 {
+		workoutLimit = 20
+	}
+	if workoutLimit > 60 {
+		workoutLimit = 60
+	}
+	rows, err := r.pool.Query(ctx, `
+		WITH recent AS (
+			SELECT id, completed_at
+			FROM workouts
+			WHERE user_id = $1
+			  AND completed_at IS NOT NULL
+			  AND routine_id = $3::uuid
+			ORDER BY completed_at DESC
+			LIMIT $2
+		)
+		SELECT w.id::text, w.completed_at, ws.exercise_id::text, e.name,
+			ws.reps, ws.weight_kg
+		FROM recent w
+		INNER JOIN workout_sets ws ON ws.workout_id = w.id
+		INNER JOIN exercises e ON e.id = ws.exercise_id
+		ORDER BY w.completed_at ASC, ws.exercise_id::text, ws.set_number`,
+		userID, workoutLimit, routineID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ProgressionSetRow
+	for rows.Next() {
+		var row ProgressionSetRow
+		var reps pgtype.Int4
+		var wkg pgtype.Float8
+		if err := rows.Scan(&row.WorkoutID, &row.CompletedAt, &row.ExerciseID, &row.ExerciseName, &reps, &wkg); err != nil {
+			return nil, err
+		}
+		if reps.Valid {
+			v := int(reps.Int32)
+			row.Reps = &v
+		}
+		if wkg.Valid {
+			v := wkg.Float64
+			row.WeightKg = &v
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
 // GetPreviousMatchingCompleted returns the most recent completed workout strictly before `before`,
 // matching the latest session's routine_id when set; otherwise matching ad-hoc workouts by name
 // (routine_id IS NULL). Returns (nil, nil) when no match exists.

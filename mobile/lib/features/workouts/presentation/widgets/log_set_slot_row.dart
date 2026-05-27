@@ -42,6 +42,7 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
   late final TextEditingController _reps;
   late final TextEditingController _weight;
   bool _saving = false;
+  bool _suppressDraftNotify = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -59,17 +60,30 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
   void didUpdateWidget(LogSetSlotRow oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.logged?.id != widget.logged?.id) {
-      _reps.text = _resolveReps();
-      _weight.text = _resolveWeight();
+      _setTextSilently(_reps, _resolveReps());
+      _setTextSilently(_weight, _resolveWeight());
     } else if (widget.draftReps != oldWidget.draftReps && widget.draftReps != _reps.text) {
-      _reps.text = widget.draftReps ?? _resolveReps();
+      _setTextSilently(_reps, widget.draftReps ?? _resolveReps());
     } else if (widget.draftWeight != oldWidget.draftWeight && widget.draftWeight != _weight.text) {
-      _weight.text = widget.draftWeight ?? _resolveWeight();
+      _setTextSilently(_weight, widget.draftWeight ?? _resolveWeight());
     }
   }
 
   void _notifyDraft() {
+    if (_suppressDraftNotify) return;
     widget.onDraftChanged(_reps.text, _weight.text);
+  }
+
+  void _setTextSilently(TextEditingController c, String next) {
+    if (c.text == next) return;
+    _suppressDraftNotify = true;
+    final selection = TextSelection.collapsed(offset: next.length);
+    c.value = TextEditingValue(
+      text: next,
+      selection: selection,
+      composing: TextRange.empty,
+    );
+    _suppressDraftNotify = false;
   }
 
   String _resolveReps() {
@@ -212,10 +226,18 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
                 child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
               )
             else ...[
-              IconButton(
-                tooltip: isLogged ? 'Update' : 'Log set',
-                icon: Icon(isLogged ? Icons.check : Icons.add_circle_outline, color: AppColors.primary),
-                onPressed: _save,
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: FilledButton.icon(
+                  onPressed: _save,
+                  icon: Icon(isLogged ? Icons.check : Icons.add),
+                  label: Text(isLogged ? 'Update' : 'Log'),
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
               ),
               if (isLogged)
                 IconButton(

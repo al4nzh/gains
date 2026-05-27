@@ -6,6 +6,7 @@ import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/analytics/data/analytics_api.dart';
 import 'package:gains/features/analytics/models/exercise_progression.dart';
 import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
+import 'package:gains/features/analytics/presentation/widgets/e1rm_trend_chart.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
@@ -20,8 +21,10 @@ class ProgressListScreen extends StatefulWidget {
 class _ProgressListScreenState extends State<ProgressListScreen> with ShellTabAutoRefresh {
   AnalyticsApi? _api;
   List<ExerciseProgressionRow> _exercises = [];
+  final Map<String, List<double>> _sparklineByExerciseId = {};
   String? _error;
   bool _loading = true;
+  bool _loadingSparklines = false;
 
   @override
   int get shellTabIndex => ShellTab.progress;
@@ -51,6 +54,7 @@ class _ProgressListScreenState extends State<ProgressListScreen> with ShellTabAu
         _exercises = list;
         _loading = false;
       });
+      _primeSparklines(list);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -64,6 +68,34 @@ class _ProgressListScreenState extends State<ProgressListScreen> with ShellTabAu
         _loading = false;
       });
     }
+  }
+
+  void _primeSparklines(List<ExerciseProgressionRow> list) {
+    if (_loadingSparklines) return;
+    if (list.isEmpty) return;
+
+    // Avoid hammering the API: warm up only for the first chunk.
+    final ids = list.take(14).map((e) => e.exerciseId).where((id) => !_sparklineByExerciseId.containsKey(id)).toList();
+    if (ids.isEmpty) return;
+
+    _loadingSparklines = true;
+    Future(() async {
+      try {
+        for (final id in ids) {
+          final detail = await api.getExerciseDetail(id);
+          final history = detail.history;
+          if (history.isEmpty) continue;
+          final tail = history.length <= 6 ? history : history.sublist(history.length - 6);
+          _sparklineByExerciseId[id] = tail.map((h) => h.bestE1rmKg).toList();
+          if (!mounted) return;
+          setState(() {});
+        }
+      } catch (_) {
+        // Ignore sparkline failures; cards still render.
+      } finally {
+        _loadingSparklines = false;
+      }
+    });
   }
 
   @override
@@ -143,6 +175,7 @@ class _ProgressListScreenState extends State<ProgressListScreen> with ShellTabAu
         final row = _exercises[i - 1];
         return _ExerciseProgressCard(
           row: row,
+          sparkline: _sparklineByExerciseId[row.exerciseId],
           onTap: () => context.push('/progress/${row.exerciseId}'),
         );
       },
@@ -151,15 +184,21 @@ class _ProgressListScreenState extends State<ProgressListScreen> with ShellTabAu
 }
 
 class _ExerciseProgressCard extends StatelessWidget {
-  const _ExerciseProgressCard({required this.row, required this.onTap});
+  const _ExerciseProgressCard({
+    required this.row,
+    required this.onTap,
+    required this.sparkline,
+  });
 
   final ExerciseProgressionRow row;
   final VoidCallback onTap;
+  final List<double>? sparkline;
 
   @override
   Widget build(BuildContext context) {
     final changeColor = e1rmChangeColor(row.e1rmChangeKg);
     final trend = row.trend;
+    final isPr = (row.latestE1rmKg > 0) && (row.latestE1rmKg >= row.absoluteBestE1rmKg - 0.01);
 
     return Card(
       child: InkWell(
@@ -204,6 +243,10 @@ class _ExerciseProgressCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  if (isPr) ...[
+                    const _PrBadge(),
+                    const SizedBox(height: 8),
+                  ],
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -220,12 +263,48 @@ class _ExerciseProgressCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  if (sparkline != null && sparkline!.length >= 2) ...[
+                    E1rmSparkline(values: sparkline!),
+                    const SizedBox(height: 6),
+                  ],
                   const Icon(Icons.chevron_right, color: AppColors.textMuted),
                 ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PrBadge extends StatelessWidget {
+  const _PrBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('🏆', style: TextStyle(fontSize: 11, height: 1.1)),
+          SizedBox(width: 3),
+          Text(
+            'PR',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
       ),
     );
   }

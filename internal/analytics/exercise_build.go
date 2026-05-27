@@ -97,8 +97,16 @@ func bestSetLoadForWorkoutExercise(rows []ProgressionSetRow, workoutID, exercise
 	return best
 }
 
+const (
+	exerciseTrendMaxSessions = 6
+	exerciseTrendEpsilonKg   = 0.5
+)
+
 func trendLabel(delta float64) string {
-	const eps = 0.5
+	return trendLabelEpsilon(delta, exerciseTrendEpsilonKg)
+}
+
+func trendLabelEpsilon(delta, eps float64) string {
 	if delta > eps {
 		return "up"
 	}
@@ -106,6 +114,51 @@ func trendLabel(delta float64) string {
 		return "down"
 	}
 	return "flat"
+}
+
+func meanE1RM(vals []float64) float64 {
+	if len(vals) == 0 {
+		return 0
+	}
+	var sum float64
+	for _, v := range vals {
+		sum += v
+	}
+	return sum / float64(len(vals))
+}
+
+// trendFromSessionE1RMs compares average best e1RM in the newer half vs the older half
+// within the last up to exerciseTrendMaxSessions (oldest→newest). Smooths session-to-session noise.
+// singleLabel is returned when only one session exists (e.g. "single_session" on detail); list uses "" → "flat".
+func trendFromSessionE1RMs(series []float64, singleLabel string) string {
+	n := len(series)
+	if n == 0 {
+		return "no_data"
+	}
+	if n == 1 {
+		if singleLabel != "" {
+			return singleLabel
+		}
+		return "flat"
+	}
+	window := series
+	if n > exerciseTrendMaxSessions {
+		window = series[n-exerciseTrendMaxSessions:]
+	}
+	nw := len(window)
+	k := nw / 2
+	if k < 1 {
+		k = 1
+	}
+	recent := window[nw-k:]
+	prior := window[nw-2*k : nw-k]
+	var delta float64
+	if len(prior) == 0 {
+		delta = window[nw-1] - window[nw-2]
+	} else {
+		delta = meanE1RM(recent) - meanE1RM(prior)
+	}
+	return trendLabelEpsilon(delta, exerciseTrendEpsilonKg)
 }
 
 func streakFromDistinctDescDates(dates []time.Time) int {
@@ -145,13 +198,11 @@ func BuildExerciseListItems(rows []ProgressionSetRow, lifetime map[string]Lifeti
 			p := math.Round((delta/first)*10000) / 100
 			pct = &p
 		}
-		var trend string
-		if len(h) >= 2 {
-			d2 := h[len(h)-1].e1 - h[len(h)-2].e1
-			trend = trendLabel(d2)
-		} else {
-			trend = trendLabel(delta)
+		series := make([]float64, len(h))
+		for i := range h {
+			series[i] = h[i].e1
 		}
+		trend := trendFromSessionE1RMs(series, "")
 		lw := h[len(h)-1].workoutID
 		var absE float64
 		var absSet *SetLoadSummary
@@ -267,13 +318,11 @@ func BuildExerciseDetailResponse(exerciseID string, flat []ExerciseDetailRow) *E
 			PRs:         prs,
 		})
 	}
-	trend := "no_data"
-	if len(hist) >= 2 {
-		d := hist[len(hist)-1].BestE1RMKg - hist[len(hist)-2].BestE1RMKg
-		trend = trendLabel(d)
-	} else if len(hist) == 1 {
-		trend = "single_session"
+	series := make([]float64, len(hist))
+	for i := range hist {
+		series[i] = hist[i].BestE1RMKg
 	}
+	trend := trendFromSessionE1RMs(series, "single_session")
 
 	out := &ExerciseDetailResponse{
 		ExerciseID:   exerciseID,

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"gainsai/internal/adaptiverecommendations"
 	"gainsai/internal/ai"
 	"gainsai/internal/analytics"
 	"gainsai/internal/auth"
@@ -107,6 +108,13 @@ func main() {
 
 	aiRepo := ai.NewRepository(pool)
 	analyticsRepo := analytics.NewRepository(pool)
+
+	adaptiveRepo := adaptiverecommendations.NewRepository(pool)
+	adaptiveSvc := adaptiverecommendations.NewService(
+		adaptiveRepo, routineRepo, workoutRepo, recoveryRepo, profileRepo, analyticsRepo, exerciseRepo,
+	)
+	adaptiveHandler := adaptiverecommendations.NewHandler(adaptiveSvc)
+	adaptiveHandler.RegisterRoutes(r, requireAuth, workoutLimiter.Middleware())
 	analyticsSvc := analytics.NewService(analyticsRepo, recoveryRepo, profileRepo, routineRepo, workoutRepo, aiRepo)
 	analyticsHandler := analytics.NewHandler(analyticsSvc)
 	analyticsHandler.RegisterRoutes(r, requireAuth, analyticsLimiter.Middleware())

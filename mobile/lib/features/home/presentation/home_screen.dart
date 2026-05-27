@@ -7,6 +7,10 @@ import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/home/data/home_api.dart';
 import 'package:gains/features/home/models/home_summary.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
+import 'package:gains/features/home/presentation/widgets/home_stats_widgets.dart';
+import 'package:gains/features/home/presentation/widgets/home_week_activity.dart';
+import 'package:gains/features/workouts/data/workout_api.dart';
+import 'package:gains/features/workouts/models/workout.dart';
 import 'package:gains/features/recovery/data/recovery_api.dart';
 import 'package:gains/features/recovery/models/recovery_checkin.dart';
 import 'package:gains/features/recovery/presentation/widgets/daily_readiness_card.dart';
@@ -26,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
   HomeApi? _homeApi;
   RecoveryApi? _recoveryApi;
   HomeSummary? _data;
+  List<bool> _weekTrained = List.filled(7, false);
   RecoveryCheckinStatus? _readinessStatus;
   String? _error;
   bool _loading = true;
@@ -64,7 +69,14 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
       });
     }
     try {
-      final data = await homeApi.fetchHome();
+      final client = context.read<ApiClient>();
+      final homeFuture = homeApi.fetchHome();
+      final workoutsFuture = WorkoutApi(client)
+          .listWorkouts()
+          .catchError((_) => <Workout>[]);
+      final data = await homeFuture;
+      final workouts = await workoutsFuture;
+      final weekTrained = weekTrainingDaysFromWorkouts(workouts);
       RecoveryCheckinStatus? readiness;
       if (!_readinessDismissedSession && !LocalCheckinDate.isBefore5Am()) {
         try {
@@ -76,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
       if (!mounted) return;
       setState(() {
         _data = data;
+        _weekTrained = weekTrained;
         _readinessStatus = readiness;
         _loading = false;
       });
@@ -213,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
         const SizedBox(height: 12),
         _LatestWorkoutCard(workout: data.latestWorkout),
         const SizedBox(height: 12),
-        _StatsRow(data: data),
+        HomeStatsSection(data: data, weekTrained: _weekTrained),
         const SizedBox(height: 20),
         Text('Quick actions', style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 12),
@@ -476,72 +489,6 @@ class _LatestWorkoutCard extends StatelessWidget {
                     ),
               ),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  const _StatsRow({required this.data});
-
-  final HomeSummary data;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _MiniStat(
-            label: '${data.weeklyVolumeWindowDays}d volume',
-            value: formatVolumeKg(data.weeklyVolumeKg),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MiniStat(
-            label: 'Streak',
-            value: '${data.streakDays}d',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _MiniStat(
-            label: '28d avg/wk',
-            value: data.workoutConsistency.avgPerWeek.toStringAsFixed(1),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
           ],
         ),
       ),

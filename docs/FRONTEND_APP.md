@@ -108,7 +108,8 @@ Bottom tabs:
 ### Screen: Start workout
 
 - Optional: pick **routine** (`GET /routines`) or custom name.
-- **API:** `POST /workouts` — `{ "routine_id?", "name?" }`.
+- **API:** `POST /workouts` — `{ "routine_id?", "name?" }`. Only **one** active workout at a time; **409** includes `active_workout_id` if user already has a session in progress.
+- **Discard:** `DELETE /workouts/:id` while in progress (clears session without finish stats).
 
 ### Screen: Active workout (live logging)
 

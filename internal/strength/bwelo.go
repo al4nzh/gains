@@ -137,6 +137,50 @@ func BenchmarkSessionScoreBW(
 	return sum / float64(len(bestNormByLift)), len(bestNormByLift)
 }
 
+// BestBenchmarkNormsByFamily returns the best normalized score per benchmark family
+// from per-exercise e1RM peaks (merge historical + current session before calling).
+func BestBenchmarkNormsByFamily(
+	bodyweightKg float64,
+	bestE1RMPerExercise map[string]float64,
+	namesByExerciseID map[string]string,
+	maxRawRatio float64,
+) map[BenchmarkLift]float64 {
+	out := map[BenchmarkLift]float64{}
+	for exID, e1 := range bestE1RMPerExercise {
+		if e1 <= 0 {
+			continue
+		}
+		name, ok := namesByExerciseID[exID]
+		if !ok {
+			continue
+		}
+		lift, ok := BenchmarkLiftFromExerciseName(name)
+		if !ok {
+			continue
+		}
+		n := BenchmarkNormScore(bodyweightKg, e1, lift, maxRawRatio)
+		if n <= 0 {
+			continue
+		}
+		if cur, exists := out[lift]; !exists || n > cur {
+			out[lift] = n
+		}
+	}
+	return out
+}
+
+// AverageBenchmarkNorms returns the mean of per-family norms and how many families contributed.
+func AverageBenchmarkNorms(normsByLift map[BenchmarkLift]float64) (avg float64, count int) {
+	if len(normsByLift) == 0 {
+		return 0, 0
+	}
+	var sum float64
+	for _, n := range normsByLift {
+		sum += n
+	}
+	return sum / float64(len(normsByLift)), len(normsByLift)
+}
+
 // ClampElo keeps rating in a sane band.
 func ClampElo(elo int) int {
 	if elo < 100 {

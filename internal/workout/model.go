@@ -16,7 +16,8 @@ type Workout struct {
 	CreatedAt        time.Time        `json:"created_at"    db:"created_at"`
 	TotalVolumeKg    *float64         `json:"total_volume_kg,omitempty" db:"total_volume_kg"`
 	DurationSeconds  *int             `json:"duration_seconds,omitempty" db:"duration_seconds"`
-	Stats            json.RawMessage  `json:"stats,omitempty" db:"stats"`
+	Stats                json.RawMessage `json:"stats,omitempty" db:"stats"`
+	AdaptiveAdjustments  json.RawMessage `json:"adaptive_adjustments,omitempty" db:"adaptive_adjustments"`
 
 	Sets []SetOut `json:"sets,omitempty" db:"-"`
 }

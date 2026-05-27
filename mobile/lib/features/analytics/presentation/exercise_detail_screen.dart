@@ -5,6 +5,7 @@ import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/analytics/data/analytics_api.dart';
 import 'package:gains/features/analytics/models/exercise_detail.dart';
 import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
+import 'package:gains/features/analytics/presentation/widgets/e1rm_trend_chart.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:provider/provider.dart';
 
@@ -166,6 +167,14 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         if (detail.latestComparison != null) ...[
           const SizedBox(height: 12),
           _ComparisonCard(comparison: detail.latestComparison!),
+        ],
+        if (detail.history.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          E1rmTrendChartCard(
+            history: detail.history,
+            trendSummary: detail.trendSummary,
+            absoluteBestE1rmKg: detail.absoluteBestE1rmKg,
+          ),
         ],
         const SizedBox(height: 20),
         Text('Session history', style: Theme.of(context).textTheme.titleSmall),

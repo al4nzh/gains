@@ -3,8 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/routines/data/routine_api.dart';
 import 'package:gains/features/routines/models/routine.dart';
+import 'package:gains/features/routines/presentation/widgets/routine_muscles_mini_diagram.dart';
 import 'package:gains/features/routines/presentation/widgets/routine_dialogs.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
@@ -20,6 +22,7 @@ class RoutinesListScreen extends StatefulWidget {
 class _RoutinesListScreenState extends State<RoutinesListScreen> with ShellTabAutoRefresh {
   RoutineApi? _api;
   List<RoutineSummary> _routines = [];
+  Map<String, String> _exerciseIdToMuscleGroup = {};
   String? _error;
   bool _loading = true;
 
@@ -45,10 +48,16 @@ class _RoutinesListScreenState extends State<RoutinesListScreen> with ShellTabAu
       });
     }
     try {
-      final list = await api.listRoutines();
+      final client = context.read<ApiClient>();
+      final listFuture = api.listRoutines();
+      final muscleMapFuture = ExerciseApi(client).loadMuscleGroupMap();
+
+      final list = await listFuture;
+      final muscleMap = await muscleMapFuture;
       if (!mounted) return;
       setState(() {
         _routines = list;
+        _exerciseIdToMuscleGroup = muscleMap;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -170,21 +179,55 @@ class _RoutinesListScreenState extends State<RoutinesListScreen> with ShellTabAu
       itemBuilder: (context, i) {
         final r = _routines[i];
         return Card(
-          child: ListTile(
-            title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(
-              [
-                '${r.exerciseCount} exercises',
-                if (r.description != null && r.description!.isNotEmpty) r.description!,
-              ].join(' · '),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: const Icon(Icons.chevron_right),
+          child: InkWell(
             onTap: () async {
               await context.push('/routines/${r.id}');
               _load();
             },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          r.name,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          [
+                            '${r.exerciseCount} exercises',
+                            if (r.description != null && r.description!.isNotEmpty) r.description!,
+                          ].join(' · '),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  if (_exerciseIdToMuscleGroup.isNotEmpty)
+                    RoutineMusclesMiniDiagram(
+                      routineId: r.id,
+                      routineApi: api,
+                      exerciseIdToMuscleGroup: _exerciseIdToMuscleGroup,
+                      viewSize: 56,
+                    )
+                  else
+                    const SizedBox(width: 118, height: 56),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 22),
+                ],
+              ),
+            ),
           ),
         );
       },

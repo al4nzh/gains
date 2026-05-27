@@ -20,7 +20,7 @@ HTTP API for the Gains backend (Gin). Base URL defaults to `http://localhost:{PO
 | `/profile` | `PROFILE_RATE_LIMIT_RPS`, `PROFILE_RATE_LIMIT_BURST` | 10, 20 |
 | `/exercises` | `EXERCISE_RATE_LIMIT_RPS`, `EXERCISE_RATE_LIMIT_BURST` | 20, 40 |
 | `/routines`, `/routine-templates` | `ROUTINE_RATE_LIMIT_RPS`, `ROUTINE_RATE_LIMIT_BURST` | 15, 30 |
-| `/workouts` | `WORKOUT_RATE_LIMIT_RPS`, `WORKOUT_RATE_LIMIT_BURST` | 25, 50 |
+| `/workouts`, `/adaptive-recommendations` | `WORKOUT_RATE_LIMIT_RPS`, `WORKOUT_RATE_LIMIT_BURST` | 25, 50 |
 | `/recovery-checkins` | `RECOVERY_RATE_LIMIT_RPS`, `RECOVERY_RATE_LIMIT_BURST` | 15, 30 |
 | `/home`, `/analytics` | `ANALYTICS_RATE_LIMIT_RPS`, `ANALYTICS_RATE_LIMIT_BURST` | 10, 20 |
 | `/ai/*` | `AI_RATE_LIMIT_RPS`, `AI_RATE_LIMIT_BURST` | 3, 6 |
@@ -459,6 +459,71 @@ Same idea as routine exercises: template fields plus `exercise_name`. Uses `temp
 
 ---
 
+## Adaptive workout recommendations
+
+Rule-based (non-LLM) suggestions for the Train flow: readiness, injury notes, e1RM trends, and weekly muscle volume. **Progression and volume use only completed workouts logged with the same `routine_id`** (not your whole training history). Recovery/sharpness remain global (daily check-in). **Auth:** required · **Rate limit:** same as `/workouts`.
+
+Recommendations are short cards (`message` + `suggested_change`). **Apply** stores adjustments on the **active workout only** (`adaptive_adjustments` JSON); routines are not modified.
+
+### `GET /adaptive-recommendations/routine/:routineId`
+
+Pre-workout cards for a routine (before or without starting a session).
+
+**200:**
+
+```json
+{
+  "recommendations": [
+    {
+      "id": "reduce_volume:re-uuid",
+      "type": "reduce_volume",
+      "scope": "routine",
+      "target_exercise_id": "exercise-uuid",
+      "target_routine_exercise_id": "re-uuid",
+      "target_muscle_group": "chest",
+      "reason": "Low readiness today (sharpness 52, sleep 5.2h)",
+      "message": "Sharpness is low today. Reduce chest accessory volume by 1 set.",
+      "suggested_change": { "sets_delta": -1 },
+      "confidence": "medium"
+    }
+  ],
+  "context_summary": {
+    "sharpness_score": 52,
+    "latest_sleep_hours": 5.2,
+    "latest_energy": 2,
+    "has_injury_notes": false,
+    "recovery_checkin_ok": true
+  }
+}
+```
+
+**Types:** `reduce_volume`, `swap_exercise`, `reduce_intensity`, `increase_weight`, `deload`, `reduce_muscle_volume`
+
+**404:** routine not found or not owned
+
+---
+
+### `POST /adaptive-recommendations/apply`
+
+Apply one recommendation to the current session.
+
+**Body:**
+
+```json
+{
+  "workout_id": "uuid",
+  "recommendation_id": "reduce_volume:re-uuid"
+}
+```
+
+**200:** `{ "workout_id", "applied", "adaptive_adjustments": [ ... ] }`
+
+**400:** unknown `recommendation_id` · **409:** workout finished or recommendation already applied
+
+`GET /workouts/:id` includes `adaptive_adjustments` after apply (migration `000019`).
+
+---
+
 ## Workouts (logging + Strength Elo)
 
 **Auth:** required · **Rate limit:** `WORKOUT_RATE_LIMIT_*` (defaults 25 RPS / 50 burst)
@@ -466,6 +531,8 @@ Same idea as routine exercises: template fields plus `exercise_name`. Uses `temp
 ### `POST /workouts`
 
 Start an in-progress session (`completed_at` null until finish).
+
+**One active workout per user:** if the user already has a session with `completed_at` null, this returns **409** and does not create another row. The DB enforces the same rule (`idx_workouts_one_active_per_user`).
 
 **Body:**
 
@@ -480,6 +547,8 @@ If `routine_id` is set, it must belong to the current user. Empty string is trea
 
 **201:** Workout with `sets: []`
 
+**409:** `{ "error": "active workout already in progress", "active_workout_id": "uuid" }`
+
 ---
 
 ### `GET /workouts`
@@ -490,9 +559,21 @@ If `routine_id` is set, it must belong to the current user. Empty string is trea
 
 ### `GET /workouts/:id`
 
-**200:** Workout plus `sets` (each set includes `exercise_name`).
+**200:** Workout plus `sets` (each set includes `exercise_name`). May include `adaptive_adjustments` (array of session-only changes from **Apply**).
 
 **404:** not found / not yours
+
+In-progress rows have `completed_at` null (use for resume UI).
+
+---
+
+### `DELETE /workouts/:id`
+
+Discard an **in-progress** workout (cancel without saving). Removes the workout and all its sets. Does not affect Strength Elo or completed history.
+
+**204:** no body
+
+**404:** not found / not yours · **409:** workout already finished (use finish flow for completed sessions; completed workouts cannot be deleted via this route)
 
 ---
 
@@ -547,10 +628,10 @@ Completes the workout, persists **volume**, **duration**, **stats** JSON, comput
 - `prs`: `{ exercise_id, exercise_name, previous_best_e1rm_kg, new_best_e1rm_kg }[]` (only lifts that beat historical e1RM)
 - `strength_elo`: updated when **profile `weight_kg` > 0**, the user has logged **≥ 2 distinct benchmark lift families ever**, and **this session** includes **≥ 1 benchmark lift** with a countable e1RM.
   - Benchmarks (by exercise name): `Bench Press`, `Squat`, `Deadlift`, `OHP` / `Overhead Press`, `Barbell Row` / `Pendlay Row`
-  - Only benchmark lifts logged **in the finished session** contribute to `session_score_bw`.
-  - **No per-session cap:** Elo is set from this finish’s benchmark strength: `strength_elo.after = clamp(1000 + 280×(session_score_bw − 1))` (global bounds **100–3600** only). Same normalized performance → same rating for every user.
-  - Weaker benchmark work in a finish (e.g. 140 kg vs 150 kg bench) lowers `session_score_bw` and **immediately** lowers Elo.
-  - `session_score_bw`: average `(e1RM/bodyweight)/refLift` for benchmarks logged in this session only.
+  - **Rating uses lifetime bests per family**, not only today’s lifts: for each benchmark family, take your **best ever** normalized e1RM (history + this finish), then **average across all families you’ve trained**. A weak deadlift-only day does **not** erase a strong bench from your rating.
+  - **Requires ≥ 1 benchmark in this finish** to run the update (and ≥ 2 families lifetime).
+  - `strength_elo.after = clamp(1000 + 280×(session_score_bw − 1))` where **`session_score_bw`** is that lifetime-average norm (global bounds **100–3600** only).
+  - Finish **`stats`** / history meta may also include `session_only_bw` (today’s benchmarks only) for debugging.
   - `before`, `after`, `delta`, `change_30d`, `bodyweight_kg`
 - If bodyweight is missing, the user has logged fewer than **2 benchmark families lifetime**, or **this session** has no countable benchmark sets: `strength_elo.skipped: true`, Elo unchanged, no new `strength_elo_history` row.
 
@@ -651,13 +732,13 @@ Lightweight **home tab** summary (UTC windows where applicable).
 
 **Progress tab** — list of exercises the user has trained (recent **36** completed workouts with **`workout_sets`**; **Brzycki** e1RM per session). Includes exercises with **≥1** session in that window (first workout still lists lifts).
 
-**200:** `{ "exercises": [ ... ] }` — sorted by largest absolute `e1rm_change_kg` (ties by higher `latest_e1rm_kg`). With only one session in the window, **`e1rm_change_kg`** is **0**, **`e1rm_change_pct`** is **0** when a baseline e1RM exists, and **`trend`** is **`flat`**. **`latest_*`**, **`e1rm_change_*`**, **`data_points`**, and **`trend`** use the recent **36** completed workouts with logged sets. **`absolute_best_*`** is the user’s **lifetime** best Brzycki e1RM (and the `workout_sets` row that produced it) across **all** completed workouts, not capped to that window.
+**200:** `{ "exercises": [ ... ] }` — sorted by largest absolute `e1rm_change_kg` (ties by higher `latest_e1rm_kg`). With only one session in the window, **`e1rm_change_kg`** is **0**, **`e1rm_change_pct`** is **0** when a baseline e1RM exists, and **`trend`** is **`flat`**. **`e1rm_change_kg`** is oldest→newest across the **36**-workout window; **`trend`** uses the last **≤6** sessions with that exercise: average best e1RM of the **newer half** vs the **older half** of that slice (`up` / `flat` / `down` with **±0.5 kg** dead band). **`absolute_best_*`** is lifetime best (all completed workouts).
 
 ### `GET /analytics/exercises/:exerciseId`
 
 **Exercise detail** — per-workout history for one exercise (up to **60** recent completed workouts).
 
-**200:** `exercise_id`, `exercise_name`, **`absolute_best_e1rm_kg`** / **`absolute_best_set`** / **`absolute_best_workout_id`** / **`absolute_best_completed_at`** — **lifetime** best Brzycki e1RM and the `workout_sets` row that produced it (all completed workouts). **`history`** is still limited to up to **60** recent completed workouts: `[ { "workout_id", "completed_at", "best_set", "best_e1rm_kg", "volume_kg", "prs"?: [...] } ]` (oldest → newest). **`latest_comparison`** (omitted unless **`history`** has **≥2** entries): compares the **last** history entry (newest session) vs the **second-to-last** — `previous_completed_at` (that older session’s `completed_at`), `e1rm_change_kg`, `e1rm_change_pct` (vs previous best e1RM; omitted if previous e1RM is 0), `volume_change_kg`, `volume_change_pct` (vs previous volume; omitted if previous volume is 0), `best_set_previous`, `best_set_current` (`reps` / `weight_kg`). **`trend_summary`**: `up` / `flat` / `down` / `single_session` / `no_data` (unchanged: from the same last two **`history`** entries when ≥2).
+**200:** `exercise_id`, `exercise_name`, **`absolute_best_e1rm_kg`** / **`absolute_best_set`** / **`absolute_best_workout_id`** / **`absolute_best_completed_at`** — **lifetime** best Brzycki e1RM and the `workout_sets` row that produced it (all completed workouts). **`history`** is still limited to up to **60** recent completed workouts: `[ { "workout_id", "completed_at", "best_set", "best_e1rm_kg", "volume_kg", "prs"?: [...] } ]` (oldest → newest). **`latest_comparison`** (omitted unless **`history`** has **≥2** entries): compares the **last** history entry (newest session) vs the **second-to-last** — `previous_completed_at`, `e1rm_change_kg`, `e1rm_change_pct`, volume deltas, `best_set_previous`, `best_set_current`. **`trend_summary`**: same smoothed rule as list **`trend`** (last **≤6** sessions: avg newer half vs avg older half, **±0.5 kg**); `single_session` / `no_data` when applicable.
 
 ### `GET /analytics/workouts/:workoutId/context`
 

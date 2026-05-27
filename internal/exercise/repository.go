@@ -91,6 +91,34 @@ func (r *Repository) ResolveCatalogByName(ctx context.Context, name string, sear
 	}
 }
 
+type ExerciseMeta struct {
+	ID          string
+	Name        string
+	MuscleGroup string
+}
+
+// GetMetaByIDs returns id, name, and muscle_group for exercises.
+func (r *Repository) GetMetaByIDs(ctx context.Context, ids []string) (map[string]ExerciseMeta, error) {
+	if len(ids) == 0 {
+		return map[string]ExerciseMeta{}, nil
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT id::text, name, COALESCE(muscle_group, '')
+		FROM exercises WHERE id::text = ANY($1)`, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]ExerciseMeta)
+	for rows.Next() {
+		var m ExerciseMeta
+		if err := rows.Scan(&m.ID, &m.Name, &m.MuscleGroup); err != nil {
+			return nil, err
+		}
+		out[m.ID] = m
+	}
+	return out, rows.Err()
+}
+
 // GetNamesByIDs returns exercise id -> name for any exercise rows (catalog or custom).
 func (r *Repository) GetNamesByIDs(ctx context.Context, ids []string) (map[string]string, error) {
 	if len(ids) == 0 {

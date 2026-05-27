@@ -28,6 +28,15 @@ class WorkoutApi {
     }
   }
 
+  /// Discard an in-progress workout (`DELETE /workouts/:id`). **204** on success.
+  Future<void> discardWorkout(String workoutId) async {
+    try {
+      await _client.dio.delete<void>('/workouts/$workoutId');
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
   Future<Workout> startWorkout({String? routineId, String? name}) async {
     try {
       final response = await _client.dio.post<Map<String, dynamic>>(

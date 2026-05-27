@@ -19,7 +19,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-const workoutCols = `id, user_id, routine_id, name, started_at, completed_at, notes, created_at, total_volume_kg, duration_seconds, stats`
+const workoutCols = `id, user_id, routine_id, name, started_at, completed_at, notes, created_at, total_volume_kg, duration_seconds, stats, adaptive_adjustments`
 
 func (r *Repository) CreateWorkout(ctx context.Context, userID string, routineID *string, name *string) (*Workout, error) {
 	const q = `
@@ -44,6 +44,37 @@ func (r *Repository) RoutineOwnedBy(ctx context.Context, userID, routineID strin
 		return false, err
 	}
 	return true, nil
+}
+
+func (r *Repository) GetActiveWorkoutForUser(ctx context.Context, userID string) (*Workout, error) {
+	const q = `SELECT ` + workoutCols + `
+		FROM workouts
+		WHERE user_id = $1 AND completed_at IS NULL
+		ORDER BY started_at DESC
+		LIMIT 1`
+	rows, _ := r.pool.Query(ctx, q, userID)
+	w, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[Workout])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &w, nil
+}
+
+func (r *Repository) DeleteActiveWorkout(ctx context.Context, userID, workoutID string) error {
+	tag, err := r.pool.Exec(ctx, `
+		DELETE FROM workouts
+		WHERE id = $1 AND user_id = $2 AND completed_at IS NULL`,
+		workoutID, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *Repository) GetWorkoutForUser(ctx context.Context, userID, workoutID string) (*Workout, error) {
@@ -238,6 +269,104 @@ func (r *Repository) HistoricalMaxE1RMPerExercise(ctx context.Context, userID, e
 			continue
 		}
 		if e > best[p.ExID] {
+			best[p.ExID] = e
+		}
+	}
+	return best, nil
+}
+
+// HistoricalMaxE1RMPerExerciseSince returns best Brzycki e1RM per exercise_id from completed workouts
+// excluding excludeWorkoutID and only including workouts completed at or after "since".
+func (r *Repository) HistoricalMaxE1RMPerExerciseSince(ctx context.Context, userID, excludeWorkoutID string, since time.Time, estimate func(weight float64, reps int) float64) (map[string]float64, error) {
+	const q = `
+		SELECT ws.exercise_id, ws.weight_kg, ws.reps
+		FROM workout_sets ws
+		INNER JOIN workouts w ON w.id = ws.workout_id
+		WHERE w.user_id = $1
+		  AND w.completed_at IS NOT NULL
+		  AND w.completed_at >= $3
+		  AND w.id <> $2::uuid`
+	rows, err := r.pool.Query(ctx, q, userID, excludeWorkoutID, since)
+	if err != nil {
+		return nil, err
+	}
+	type pair struct {
+		ExID string
+		W    *float64
+		R    *int
+	}
+	list, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (pair, error) {
+		var p pair
+		err := row.Scan(&p.ExID, &p.W, &p.R)
+		return p, err
+	})
+	if err != nil {
+		return nil, err
+	}
+	best := make(map[string]float64)
+	for _, p := range list {
+		if p.W == nil || p.R == nil || *p.R <= 0 {
+			continue
+		}
+		e := estimate(*p.W, *p.R)
+		if e <= 0 {
+			continue
+		}
+		if e > best[p.ExID] {
+			best[p.ExID] = e
+		}
+	}
+	return best, nil
+}
+
+// HistoricalLatestE1RMPerExercise returns the best Brzycki e1RM per exercise_id
+// from the most recent completed workout where that exercise appears (excluding excludeWorkoutID).
+// If an exercise has multiple sets in that most recent workout, we take the max e1RM among those sets.
+func (r *Repository) HistoricalLatestE1RMPerExercise(ctx context.Context, userID, excludeWorkoutID string, estimate func(weight float64, reps int) float64) (map[string]float64, error) {
+	const q = `
+		SELECT ws.workout_id, w.completed_at, ws.exercise_id, ws.weight_kg, ws.reps
+		FROM workout_sets ws
+		INNER JOIN workouts w ON w.id = ws.workout_id
+		WHERE w.user_id = $1
+		  AND w.completed_at IS NOT NULL
+		  AND w.id <> $2::uuid
+		  AND ws.reps IS NOT NULL AND ws.reps > 0
+		  AND ws.weight_kg IS NOT NULL AND ws.weight_kg > 0
+		ORDER BY w.completed_at DESC`
+	rows, err := r.pool.Query(ctx, q, userID, excludeWorkoutID)
+	if err != nil {
+		return nil, err
+	}
+	type rowT struct {
+		WorkoutID string
+		Completed time.Time
+		ExID      string
+		W         float64
+		R         int
+	}
+	list, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (rowT, error) {
+		var x rowT
+		err := row.Scan(&x.WorkoutID, &x.Completed, &x.ExID, &x.W, &x.R)
+		return x, err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	best := make(map[string]float64)
+	latestWorkout := make(map[string]string) // exercise_id -> workout_id
+	for _, p := range list {
+		e := estimate(p.W, p.R)
+		if e <= 0 {
+			continue
+		}
+		wid, ok := latestWorkout[p.ExID]
+		if !ok {
+			latestWorkout[p.ExID] = p.WorkoutID
+			best[p.ExID] = e
+			continue
+		}
+		if wid == p.WorkoutID && e > best[p.ExID] {
 			best[p.ExID] = e
 		}
 	}

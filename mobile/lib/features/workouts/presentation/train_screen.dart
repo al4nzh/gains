@@ -3,9 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
-import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
+import 'package:gains/features/exercises/data/exercise_api.dart';
+import 'package:gains/features/recovery/utils/local_checkin_date.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
+import 'package:gains/features/workouts/presentation/train_workout_helpers.dart';
+import 'package:gains/features/workouts/presentation/widgets/train_history_tile.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +23,7 @@ class TrainScreen extends StatefulWidget {
 class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
   WorkoutApi? _api;
   List<Workout> _workouts = [];
+  Map<String, String> _exerciseMuscleGroup = {};
   String? _error;
   bool _loading = true;
 
@@ -45,10 +49,17 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
       });
     }
     try {
-      final list = await api.listWorkouts();
+      final client = context.read<ApiClient>();
+      final workoutsFuture = api.listWorkouts();
+      final muscleFuture = ExerciseApi(client)
+          .loadMuscleGroupMap()
+          .catchError((_) => <String, String>{});
+      final list = await workoutsFuture;
+      final muscleMap = await muscleFuture;
       if (!mounted) return;
       setState(() {
         _workouts = list;
+        _exerciseMuscleGroup = muscleMap;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -120,9 +131,10 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
     }
 
     final active = _inProgress;
-    final completed = _completed;
+    final sections = groupCompletedWorkoutsByDate(_completed);
+    final todayKey = LocalCheckinDate.today();
 
-    if (active == null && completed.isEmpty) {
+    if (active == null && sections.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(24),
@@ -159,31 +171,28 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
               onTap: () => _openWorkout(active),
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'History',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 8),
+          if (sections.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(
+              'History',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 4),
+          ],
         ],
-        ...completed.map(_historyTile),
+        for (final section in sections) ...[
+          TrainDateSectionHeader(
+            title: section.header,
+            isToday: section.dateKey == todayKey,
+          ),
+          for (final w in section.workouts)
+            TrainHistoryTile(
+              workout: w,
+              muscleGroups: muscleGroupsForWorkout(w, _exerciseMuscleGroup),
+              onTap: () => _openWorkout(w),
+            ),
+        ],
       ],
-    );
-  }
-
-  Widget _historyTile(Workout w) {
-    final when = w.completedAt != null ? formatRelativeDate(w.completedAt!) : '';
-    final vol = w.totalVolumeKg != null ? formatVolumeKg(w.totalVolumeKg!) : '—';
-    final dur = w.durationSeconds != null ? formatDuration(w.durationSeconds!) : '—';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        title: Text(w.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text('$when · $vol · $dur'),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => _openWorkout(w),
-      ),
     );
   }
 }
