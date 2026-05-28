@@ -119,6 +119,35 @@ func (r *Repository) GetMetaByIDs(ctx context.Context, ids []string) (map[string
 	return out, rows.Err()
 }
 
+// LookupMeta holds fields needed to resolve external exercise media.
+type LookupMeta struct {
+	ID        string
+	Name      string
+	Equipment string
+}
+
+// GetLookupMetaByIDs returns id, name, and equipment for exercises.
+func (r *Repository) GetLookupMetaByIDs(ctx context.Context, ids []string) (map[string]LookupMeta, error) {
+	if len(ids) == 0 {
+		return map[string]LookupMeta{}, nil
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT id::text, name, COALESCE(equipment, '')
+		FROM exercises WHERE id::text = ANY($1)`, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]LookupMeta)
+	for rows.Next() {
+		var m LookupMeta
+		if err := rows.Scan(&m.ID, &m.Name, &m.Equipment); err != nil {
+			return nil, err
+		}
+		out[m.ID] = m
+	}
+	return out, rows.Err()
+}
+
 // GetNamesByIDs returns exercise id -> name for any exercise rows (catalog or custom).
 func (r *Repository) GetNamesByIDs(ctx context.Context, ids []string) (map[string]string, error) {
 	if len(ids) == 0 {

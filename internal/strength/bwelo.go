@@ -59,7 +59,7 @@ func BenchmarkLiftFromExerciseName(name string) (BenchmarkLift, bool) {
 		return BenchmarkSquat, true
 	case "deadlift":
 		return BenchmarkDeadlift, true
-	case "ohp", "overhead press":
+	case "ohp":
 		return BenchmarkOverheadPress, true
 	case "barbell row", "pendlay row":
 		return BenchmarkBarbellRow, true

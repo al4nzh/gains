@@ -128,6 +128,7 @@ List<WorkoutExercisePlan> applyAdaptiveAdjustments(
           slots: e.slots,
           lastBestSet: null,
         );
+        break;
       case 'reduce_volume':
         final delta = adj.change.setsDelta;
         if (delta == null || delta >= 0) continue;
@@ -139,10 +140,13 @@ List<WorkoutExercisePlan> applyAdaptiveAdjustments(
           final newSets = (baseSets + delta).clamp(1, 99);
           return _trimPlanSlots(p, newSets);
         }).toList();
+        break;
       case 'reduce_intensity':
-        // Prefill adjustment is visual-only; user enters lower weight manually.
+      case 'deload':
+        next = _applyWeightAdjustment(next, adj, decrease: true);
         break;
       case 'increase_weight':
+        next = _applyWeightAdjustment(next, adj, decrease: false);
         break;
       default:
         break;
@@ -151,6 +155,59 @@ List<WorkoutExercisePlan> applyAdaptiveAdjustments(
 
   return next;
 }
+
+List<WorkoutExercisePlan> _applyWeightAdjustment(
+  List<WorkoutExercisePlan> plan,
+  AppliedAdjustment adj, {
+  required bool decrease,
+}) {
+  final targetId = adj.targetExerciseId;
+  if (targetId == null) return plan;
+
+  return plan.map((p) {
+    if (p.exerciseId != targetId) return p;
+
+    final base = p.lastBestSet;
+    if (base == null || base.weightKg == null || base.weightKg! <= 0) return p;
+
+    var newW = base.weightKg!;
+    if (decrease) {
+      final pct = adj.change.weightDeltaPct;
+      if (pct == null) return p;
+      newW = newW * (1 + pct / 100);
+      if (newW <= 0) return p;
+    } else {
+      final delta = adj.change.weightDeltaKg;
+      if (delta == null || delta <= 0) return p;
+      newW = newW + delta;
+    }
+
+    final reps = base.reps ?? 8;
+    final newPrefill = SetLoadSummary(reps: reps, weightKg: _roundKg(newW));
+    final newSlots = p.slots.map((s) {
+      if (s.logged != null) return s;
+      return WorkoutSetSlot(
+        setNumber: s.setNumber,
+        logged: null,
+        prefill: newPrefill,
+      );
+    }).toList();
+
+    return WorkoutExercisePlan(
+      exerciseId: p.exerciseId,
+      exerciseName: p.exerciseName,
+      targetSets: p.targetSets,
+      targetRepMin: p.targetRepMin,
+      targetRepMax: p.targetRepMax,
+      restSeconds: p.restSeconds,
+      notes: p.notes,
+      slots: newSlots,
+      lastBestSet: newPrefill,
+    );
+  }).toList();
+}
+
+double _roundKg(double w) => (w * 10).roundToDouble() / 10;
 
 WorkoutExercisePlan _trimPlanSlots(WorkoutExercisePlan p, int newSetCount) {
   final slots = [...p.slots]..sort((a, b) => a.setNumber.compareTo(b.setNumber));

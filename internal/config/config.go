@@ -52,6 +52,9 @@ type Config struct {
 	PhysiqueUploadDir   string
 	PhysiqueRateLimitRPS   float64
 	PhysiqueRateLimitBurst int
+
+	ExerciseDBEnabled bool
+	ExerciseDBBaseURL string
 }
 
 func Load() (*Config, error) {
@@ -116,6 +119,9 @@ func Load() (*Config, error) {
 	cfg.PhysiqueRateLimitRPS = parseFloat("PHYSIQUE_RATE_LIMIT_RPS", 2)
 	cfg.PhysiqueRateLimitBurst = parseInt("PHYSIQUE_RATE_LIMIT_BURST", 4)
 
+	cfg.ExerciseDBEnabled = parseBool("EXERCISEDB_ENABLED", true)
+	cfg.ExerciseDBBaseURL = getEnv("EXERCISEDB_BASE_URL", "https://oss.exercisedb.dev/api/v1")
+
 	return cfg, nil
 }
 
@@ -155,6 +161,21 @@ func parseInt(key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+func parseBool(key string, fallback bool) bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	if v == "" {
+		return fallback
+	}
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
 }
 
 func parseCSVEnv(key string) []string {

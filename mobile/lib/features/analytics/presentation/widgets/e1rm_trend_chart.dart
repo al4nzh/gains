@@ -4,9 +4,11 @@ import 'package:gains/features/analytics/models/exercise_detail.dart';
 import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
 /// Compact sparkline for the progress exercise list.
 class E1rmSparkline extends StatelessWidget {
-  const E1rmSparkline({super.key, required this.values});
+  const E1rmSparkline({super.key, required this.values, this.trend});
 
   final List<double> values;
+  /// API trend (`up` / `down` / `flat`) — matches the delta badge on the card.
+  final String? trend;
 
   @override
   Widget build(BuildContext context) {
@@ -14,16 +16,17 @@ class E1rmSparkline extends StatelessWidget {
       width: 64,
       height: 22,
       child: CustomPaint(
-        painter: _SparklinePainter(values: values),
+        painter: _SparklinePainter(values: values, trend: trend),
       ),
     );
   }
 }
 
 class _SparklinePainter extends CustomPainter {
-  _SparklinePainter({required this.values});
+  _SparklinePainter({required this.values, this.trend});
 
   final List<double> values;
+  final String? trend;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -33,10 +36,20 @@ class _SparklinePainter extends CustomPainter {
     final span = (maxV - minV).abs();
     final safeSpan = span < 0.0001 ? 1.0 : span;
 
-    final up = values.last >= values.first;
-    final color = up
-        ? AppColors.primary.withValues(alpha: 0.9)
-        : AppColors.textMuted.withValues(alpha: 0.75);
+    final Color color;
+    switch (trend) {
+      case 'up':
+        color = AppColors.primary.withValues(alpha: 0.9);
+      case 'down':
+        color = AppColors.textMuted.withValues(alpha: 0.75);
+      case 'flat':
+        color = AppColors.textSecondary.withValues(alpha: 0.85);
+      default:
+        final up = values.last >= values.first;
+        color = up
+            ? AppColors.primary.withValues(alpha: 0.9)
+            : AppColors.textMuted.withValues(alpha: 0.75);
+    }
 
     final paint = Paint()
       ..color = color
@@ -62,6 +75,7 @@ class _SparklinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SparklinePainter oldDelegate) {
+    if (oldDelegate.trend != trend) return true;
     if (oldDelegate.values.length != values.length) return true;
     for (var i = 0; i < values.length; i++) {
       if (oldDelegate.values[i] != values[i]) return true;

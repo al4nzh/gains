@@ -1,4 +1,5 @@
 -- System catalog: not custom, no owner
+-- Names align with ExerciseDB where possible (see internal/exercisedb/match.go aliases).
 INSERT INTO exercises (name, muscle_group, equipment, is_custom, created_by) VALUES
 ('Bench Press', 'chest', 'barbell', FALSE, NULL),
 ('Incline Bench Press', 'chest', 'barbell', FALSE, NULL),
@@ -28,9 +29,7 @@ INSERT INTO exercises (name, muscle_group, equipment, is_custom, created_by) VAL
 ('Cable Row', 'back', 'cable', FALSE, NULL),
 ('T-Bar Row', 'back', 'machine', FALSE, NULL),
 ('Face Pull', 'back', 'cable', FALSE, NULL),
-('Row', 'back', 'cable', FALSE, NULL),
 ('OHP', 'shoulders', 'barbell', FALSE, NULL),
-('Overhead Press', 'shoulders', 'barbell', FALSE, NULL),
 ('Dumbbell Shoulder Press', 'shoulders', 'dumbbell', FALSE, NULL),
 ('Lateral Raise', 'shoulders', 'dumbbell', FALSE, NULL),
 ('Front Raise', 'shoulders', 'dumbbell', FALSE, NULL),

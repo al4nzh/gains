@@ -39,6 +39,22 @@ class ExerciseApi {
     }
   }
 
+  /// Returns exercise id → GIF URL (ExerciseDB via backend).
+  Future<Map<String, String>> lookupGifs(List<String> exerciseIds) async {
+    final ids = exerciseIds.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) return {};
+    try {
+      final response = await _client.dio.post<Map<String, dynamic>>(
+        '/exercises/gifs',
+        data: {'exercise_ids': ids},
+      );
+      final raw = response.data!['gifs'] as Map<String, dynamic>? ?? {};
+      return raw.map((k, v) => MapEntry(k, v as String));
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
   Future<List<CatalogExercise>> search(String query, {int limit = 30}) async {
     try {
       final response = await _client.dio.get<Map<String, dynamic>>(

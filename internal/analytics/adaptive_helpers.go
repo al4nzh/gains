@@ -11,6 +11,31 @@ type ExerciseTrendAgg struct {
 	Hist  []float64
 }
 
+// LastSetLoad is the best set (reps × weight) from the exercise's most recent routine session.
+type LastSetLoad struct {
+	Reps     int
+	WeightKg float64
+}
+
+// LastBestSetLoadPerExercise returns per-exercise best set load from the latest completed
+// workout in rows (routine-scoped rows expected from the caller).
+func LastBestSetLoadPerExercise(rows []ProgressionSetRow) map[string]LastSetLoad {
+	m := aggregateExerciseHistories(rows)
+	out := make(map[string]LastSetLoad)
+	for exID, a := range m {
+		if len(a.hist) == 0 {
+			continue
+		}
+		lastWID := a.hist[len(a.hist)-1].workoutID
+		best := bestSetLoadForWorkoutExercise(rows, lastWID, exID)
+		if best == nil || best.Reps == nil || best.WeightKg == nil {
+			continue
+		}
+		out[exID] = LastSetLoad{Reps: *best.Reps, WeightKg: *best.WeightKg}
+	}
+	return out
+}
+
 // SharpnessFromCheckinsForAdaptive exposes the home sharpness scorer for rule engines.
 func SharpnessFromCheckinsForAdaptive(checkins []recovery.Checkin, prof *profile.Profile) *SharpnessOverview {
 	return sharpnessFromCheckins(checkins, prof)

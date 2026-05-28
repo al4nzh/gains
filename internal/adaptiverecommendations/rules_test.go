@@ -49,6 +49,34 @@ func TestBuildRecommendations_shoulderSwap(t *testing.T) {
 	}
 }
 
+func TestBuildRecommendations_increaseWeightUsesLastSessionLoad(t *testing.T) {
+	in := evalInput{
+		SharpnessScore: 80,
+		HasSharpness:   true,
+		ExerciseTrends: map[string]string{"bench": "up"},
+		LastBestLoad: map[string]lastSetLoadEval{
+			"bench": {Reps: 5, WeightKg: 100},
+		},
+		RoutineExercises: []routineExerciseEval{
+			{RoutineExerciseID: "re1", ExerciseID: "bench", ExerciseName: "Bench Press", MuscleGroup: "chest"},
+		},
+		ExerciseMeta: map[string]exerciseMeta{"bench": {ID: "bench", Name: "Bench Press"}},
+	}
+	recs := buildRecommendations(in, "routine")
+	found := false
+	for _, r := range recs {
+		if r.Type == TypeIncreaseWeight {
+			found = true
+			if r.SuggestedChange.WeightDeltaKg == nil || *r.SuggestedChange.WeightDeltaKg != 2.5 {
+				t.Fatalf("expected +2.5 kg delta, got %+v", r.SuggestedChange)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected increase_weight without routine target_weight_kg")
+	}
+}
+
 func TestBuildRecommendations_reduceIntensityOnlyInRoutine(t *testing.T) {
 	in := evalInput{
 		ExerciseTrends:       map[string]string{"bench": "down", "row": "down"},

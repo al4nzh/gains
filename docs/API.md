@@ -288,6 +288,32 @@ Characters `%`, `_`, `\` in `q` are escaped for safe substring matching.
 
 ---
 
+### `POST /exercises/gifs`
+
+Resolve demo GIF URLs for catalog exercises via [ExerciseDB](https://oss.exercisedb.dev) (cached server-side). Non-commercial use; attribution required in client UI.
+
+**Body:**
+
+```json
+{ "exercise_ids": ["uuid", "..."] }
+```
+
+Max **40** unique ids per request.
+
+**200:**
+
+```json
+{
+  "gifs": {
+    "uuid": "https://static.exercisedb.dev/media/EIeI8Vf.gif"
+  }
+}
+```
+
+Omitted ids had no confident match. When `EXERCISEDB_ENABLED=false`, returns `{ "gifs": {} }`.
+
+---
+
 ## Routines (user-owned)
 
 **Auth:** required · **Rate limit:** routine group
@@ -499,6 +525,8 @@ Pre-workout cards for a routine (before or without starting a session).
 
 **Types:** `reduce_volume`, `swap_exercise`, `reduce_intensity`, `increase_weight`, `deload`, `reduce_muscle_volume`
 
+`increase_weight` / `reduce_intensity`: uses **last logged set on this routine** (or routine `target_weight_kg` fallback). **Apply** pre-fills workout set weight fields (+2.5 kg or ~−7.5%).
+
 **404:** routine not found or not owned
 
 ---
@@ -627,7 +655,7 @@ Completes the workout, persists **volume**, **duration**, **stats** JSON, comput
 - `e1rm_by_exercise`: `{ exercise_id, exercise_name, best_e1rm_kg }[]`
 - `prs`: `{ exercise_id, exercise_name, previous_best_e1rm_kg, new_best_e1rm_kg }[]` (only lifts that beat historical e1RM)
 - `strength_elo`: updated when **profile `weight_kg` > 0**, the user has logged **≥ 2 distinct benchmark lift families ever**, and **this session** includes **≥ 1 benchmark lift** with a countable e1RM.
-  - Benchmarks (by exercise name): `Bench Press`, `Squat`, `Deadlift`, `OHP` / `Overhead Press`, `Barbell Row` / `Pendlay Row`
+  - Benchmarks (by exercise name): `Bench Press`, `Squat`, `Deadlift`, `OHP`, `Barbell Row` / `Pendlay Row`
   - **Rating uses lifetime bests per family**, not only today’s lifts: for each benchmark family, take your **best ever** normalized e1RM (history + this finish), then **average across all families you’ve trained**. A weak deadlift-only day does **not** erase a strong bench from your rating.
   - **Requires ≥ 1 benchmark in this finish** to run the update (and ≥ 2 families lifetime).
   - `strength_elo.after = clamp(1000 + 280×(session_score_bw − 1))` where **`session_score_bw`** is that lifetime-average norm (global bounds **100–3600** only).

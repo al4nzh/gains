@@ -53,6 +53,7 @@ class _ProgressListScreenState extends State<ProgressListScreen> with ShellTabAu
       setState(() {
         _exercises = list;
         _loading = false;
+        _sparklineByExerciseId.clear();
       });
       _primeSparklines(list);
     } on ApiException catch (e) {
@@ -74,24 +75,32 @@ class _ProgressListScreenState extends State<ProgressListScreen> with ShellTabAu
     if (_loadingSparklines) return;
     if (list.isEmpty) return;
 
-    // Avoid hammering the API: warm up only for the first chunk.
-    final ids = list.take(14).map((e) => e.exerciseId).where((id) => !_sparklineByExerciseId.containsKey(id)).toList();
+    final ids = list.map((e) => e.exerciseId).toList();
     if (ids.isEmpty) return;
 
     _loadingSparklines = true;
     Future(() async {
       try {
-        for (final id in ids) {
-          final detail = await api.getExerciseDetail(id);
-          final history = detail.history;
-          if (history.isEmpty) continue;
-          final tail = history.length <= 6 ? history : history.sublist(history.length - 6);
-          _sparklineByExerciseId[id] = tail.map((h) => h.bestE1rmKg).toList();
+        // Fetch in small parallel batches so every card updates after refresh.
+        const batchSize = 4;
+        for (var i = 0; i < ids.length; i += batchSize) {
+          final batch = ids.skip(i).take(batchSize);
+          await Future.wait(
+            batch.map((id) async {
+              try {
+                final detail = await api.getExerciseDetail(id);
+                final history = detail.history;
+                if (history.isEmpty) return;
+                final tail = history.length <= 6 ? history : history.sublist(history.length - 6);
+                _sparklineByExerciseId[id] = tail.map((h) => h.bestE1rmKg).toList();
+              } catch (_) {
+                // Ignore per-exercise failures.
+              }
+            }),
+          );
           if (!mounted) return;
           setState(() {});
         }
-      } catch (_) {
-        // Ignore sparkline failures; cards still render.
       } finally {
         _loadingSparklines = false;
       }
@@ -219,14 +228,17 @@ class _ExerciseProgressCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       'Latest e1RM ${formatE1rmKg(row.latestE1rmKg)}',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
                     if (row.latestBestSet != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         'Top set ${formatSetLoad(row.latestBestSet)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
+                              color: AppColors.textPrimary,
                             ),
                       ),
                     ],
@@ -234,7 +246,7 @@ class _ExerciseProgressCard extends StatelessWidget {
                     Text(
                       'Lifetime best ${formatE1rmKg(row.absoluteBestE1rmKg)} · ${row.dataPoints} sessions',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textMuted,
+                            color: AppColors.textSecondary,
                           ),
                     ),
                   ],
@@ -264,7 +276,7 @@ class _ExerciseProgressCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   if (sparkline != null && sparkline!.length >= 2) ...[
-                    E1rmSparkline(values: sparkline!),
+                    E1rmSparkline(values: sparkline!, trend: trend),
                     const SizedBox(height: 6),
                   ],
                   const Icon(Icons.chevron_right, color: AppColors.textMuted),

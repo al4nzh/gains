@@ -86,6 +86,12 @@ type evalInput struct {
 	WeeklyVolByMuscle    map[string]float64
 	PriorVolByMuscle     map[string]float64
 	ExerciseMeta         map[string]exerciseMeta
+	LastBestLoad         map[string]lastSetLoadEval // exercise_id -> last routine session best set
+}
+
+type lastSetLoadEval struct {
+	Reps     int
+	WeightKg float64
 }
 
 type routineExerciseEval struct {

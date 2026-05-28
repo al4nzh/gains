@@ -143,6 +143,7 @@ func (s *Service) buildEvalInput(ctx context.Context, userID, routineID string, 
 		WeeklyVolByMuscle:    map[string]float64{},
 		PriorVolByMuscle:     map[string]float64{},
 		ExerciseMeta:         map[string]exerciseMeta{},
+		LastBestLoad:         map[string]lastSetLoadEval{},
 	}
 	summary := &ContextSummary{}
 
@@ -192,6 +193,14 @@ func (s *Service) buildEvalInput(ctx context.Context, userID, routineID string, 
 		return in, summary, err
 	}
 	agg := analytics.AggregateExerciseHistoriesForAdaptive(rows)
+	lastLoads := analytics.LastBestSetLoadPerExercise(rows)
+	in.LastBestLoad = make(map[string]lastSetLoadEval, len(lastLoads))
+	for exID, load := range lastLoads {
+		if _, inRoutine := routineExIDs[exID]; !inRoutine {
+			continue
+		}
+		in.LastBestLoad[exID] = lastSetLoadEval{Reps: load.Reps, WeightKg: load.WeightKg}
+	}
 	for exID, a := range agg {
 		if _, inRoutine := routineExIDs[exID]; !inRoutine {
 			continue

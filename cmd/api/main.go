@@ -19,6 +19,7 @@ import (
 	"gainsai/internal/config"
 	"gainsai/internal/db"
 	"gainsai/internal/exercise"
+	"gainsai/internal/exercisedb"
 	"gainsai/internal/middleware"
 	"gainsai/internal/physique"
 	"gainsai/internal/profile"
@@ -89,7 +90,9 @@ func main() {
 	profileHandler.RegisterRoutes(r, requireAuth, profileLimiter.Middleware())
 
 	exerciseRepo := exercise.NewRepository(pool)
-	exerciseHandler := exercise.NewHandler(exerciseRepo)
+	exerciseDBClient := exercisedb.NewClient(cfg.ExerciseDBBaseURL)
+	exerciseDBGifSvc := exercisedb.NewService(exerciseDBClient, cfg.ExerciseDBEnabled)
+	exerciseHandler := exercise.NewHandler(exerciseRepo, exerciseDBGifSvc)
 	exerciseHandler.RegisterRoutes(r, requireAuth, exerciseLimiter.Middleware())
 
 	routineRepo := routine.NewRepository(pool)

@@ -7,7 +7,10 @@ import 'package:gains/core/widgets/gains_text_field.dart';
 import 'package:gains/features/adaptive_recommendations/data/adaptive_recommendations_api.dart';
 import 'package:gains/features/adaptive_recommendations/models/adaptive_recommendation.dart';
 import 'package:gains/features/routines/data/routine_api.dart';
+import 'package:gains/features/exercises/data/exercise_api.dart';
+import 'package:gains/features/exercises/presentation/widgets/exercise_gif_thumbnail.dart';
 import 'package:gains/features/routines/models/routine.dart';
+import 'package:gains/features/routines/models/routine_exercise.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
 import 'package:gains/features/workouts/presentation/widgets/active_workout_dialogs.dart';
@@ -35,6 +38,11 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
   late final WorkoutApi _workoutApi;
   late final RoutineApi _routineApi;
   late final AdaptiveRecommendationsApi _adaptiveApi;
+  late final ExerciseApi _exerciseApi;
+
+  Routine? _selectedRoutine;
+  Map<String, String> _gifsByExerciseId = {};
+  bool _loadingPreview = false;
 
   AdaptiveRecommendationsResponse? _adaptive;
   bool _loadingAdaptive = false;
@@ -48,6 +56,7 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
     _workoutApi = WorkoutApi(client);
     _routineApi = RoutineApi(client);
     _adaptiveApi = AdaptiveRecommendationsApi(client);
+    _exerciseApi = ExerciseApi(client);
   }
 
   @override
@@ -55,7 +64,7 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
     super.initState();
     _selectedRoutineId = widget.routineId;
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadRoutines());
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAdaptive());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadRoutinePreview());
   }
 
   @override
@@ -88,11 +97,14 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
     }
   }
 
-  Future<void> _loadAdaptive() async {
+  Future<void> _loadRoutinePreview() async {
     final routineId = _selectedRoutineId;
     if (routineId == null) {
       if (!mounted) return;
       setState(() {
+        _selectedRoutine = null;
+        _gifsByExerciseId = {};
+        _loadingPreview = false;
         _adaptive = null;
         _loadingAdaptive = false;
         _adaptiveError = null;
@@ -102,28 +114,53 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
     }
 
     setState(() {
+      _loadingPreview = true;
       _loadingAdaptive = true;
       _adaptiveError = null;
       _adaptive = null;
       _ignoredAdaptive = false;
+      _selectedRoutine = null;
+      _gifsByExerciseId = {};
     });
+
     try {
-      final res = await _adaptiveApi.getForRoutine(routineId);
+      final routine = await _routineApi.getRoutine(routineId);
+      final ids = routine.exercises.map((e) => e.exerciseId).toList();
+      final gifs = ids.isEmpty
+          ? <String, String>{}
+          : await _exerciseApi.lookupGifs(ids);
+
+      AdaptiveRecommendationsResponse? adaptive;
+      String? adaptiveError;
+      try {
+        adaptive = await _adaptiveApi.getForRoutine(routineId);
+      } on ApiException catch (e) {
+        adaptiveError = e.message;
+      } catch (_) {
+        adaptiveError = 'Could not load recommendations';
+      }
+
       if (!mounted) return;
       setState(() {
-        _adaptive = res;
+        _selectedRoutine = routine;
+        _gifsByExerciseId = gifs;
+        _adaptive = adaptive;
+        _adaptiveError = adaptiveError;
+        _loadingPreview = false;
         _loadingAdaptive = false;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
         _adaptiveError = e.message;
+        _loadingPreview = false;
         _loadingAdaptive = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _adaptiveError = 'Could not load recommendations';
+        _adaptiveError = 'Could not load routine preview';
+        _loadingPreview = false;
         _loadingAdaptive = false;
       });
     }
@@ -272,9 +309,9 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
             _RoutineOption(
               title: 'No routine',
               selected: _selectedRoutineId == null,
-              onTap: () {
+                onTap: () {
                 setState(() => _selectedRoutineId = null);
-                _loadAdaptive();
+                _loadRoutinePreview();
               },
             ),
             ..._routines.map(
@@ -284,8 +321,35 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
                 selected: _selectedRoutineId == r.id,
                 onTap: () {
                   setState(() => _selectedRoutineId = r.id);
-                  _loadAdaptive();
+                  _loadRoutinePreview();
                 },
+              ),
+            ),
+          ],
+          if (_selectedRoutineId != null && (_selectedRoutine?.exercises.isNotEmpty ?? false)) ...[
+            const SizedBox(height: 24),
+            Text(
+              'Exercises in this routine',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            if (_loadingPreview)
+              const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+            else
+              ..._selectedRoutine!.exercises.map(
+                (e) => _RoutineExercisePreviewTile(
+                  exercise: e,
+                  gifUrl: _gifsByExerciseId[e.exerciseId],
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Demo animations via ExerciseDB',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
               ),
             ),
           ],
@@ -380,6 +444,38 @@ class _AdaptiveAdjustmentCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _RoutineExercisePreviewTile extends StatelessWidget {
+  const _RoutineExercisePreviewTile({
+    required this.exercise,
+    this.gifUrl,
+  });
+
+  final RoutineExercise exercise;
+  final String? gifUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final sets = exercise.targetSets;
+    final repMin = exercise.targetRepMin;
+    final repMax = exercise.targetRepMax;
+    String? target;
+    if (sets != null && repMin != null && repMax != null) {
+      target = '$sets × $repMin–$repMax';
+    } else if (sets != null) {
+      target = '$sets sets';
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: ExerciseGifThumbnail(gifUrl: gifUrl, size: kWorkoutExerciseGifSize),
+        title: Text(exercise.exerciseName, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: target != null ? Text(target) : null,
       ),
     );
   }

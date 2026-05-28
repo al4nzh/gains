@@ -10,8 +10,10 @@ import 'package:gains/features/routines/models/routine_exercise.dart';
 import 'package:gains/features/routines/presentation/routine_formatters.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
+import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/workouts/presentation/widgets/add_exercise_sheet.dart';
 import 'package:gains/features/workouts/presentation/widgets/log_set_slot_row.dart';
+import 'package:gains/features/workouts/presentation/widgets/workout_exercise_header.dart';
 import 'package:gains/features/workouts/presentation/workout_plan.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
@@ -32,6 +34,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   final Map<String, ({String reps, String weight})> _drafts = {};
   final Map<String, int> _extraSlotsByExerciseId = {};
   final Map<String, String> _addedExerciseNamesById = {};
+  final Map<String, String> _gifsByExerciseId = {};
   String? _error;
   bool _loading = true;
   bool _finishing = false;
@@ -207,6 +210,15 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           ? <String, SetLoadSummary?>{}
           : await AnalyticsApi(client).lastBestSetsForExercises(exerciseIds);
 
+      Map<String, String> gifs = {};
+      if (exerciseIds.isNotEmpty) {
+        try {
+          gifs = await ExerciseApi(client).lookupGifs(exerciseIds.toList());
+        } catch (_) {
+          // GIFs are optional; keep workout usable if ExerciseDB lookup fails.
+        }
+      }
+
       var plan = buildWorkoutPlan(
         routineExercises: routineExercises,
         loggedSets: workout.sets,
@@ -219,6 +231,9 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
         _workout = workout;
         // Merge in any locally-added exercises (no sets yet), then any extra slots.
         _plan = _applyExtraSlots(_mergeAddedExercises(plan, prefills));
+        _gifsByExerciseId
+          ..clear()
+          ..addAll(gifs);
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -385,27 +400,22 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
       children: [
         for (final exercise in _plan) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  exercise.exerciseName,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          WorkoutExerciseHeader(
+            exerciseName: exercise.exerciseName,
+            gifUrl: _gifsByExerciseId[exercise.exerciseId],
+            subtitleLines: [
+              if (exercise.targetRepMin != null || exercise.targetRepMax != null)
+                workoutExerciseSubtitle(
+                  context,
+                  formatRepRange(exercise.targetRepMin, exercise.targetRepMax),
                 ),
-                if (exercise.targetRepMin != null || exercise.targetRepMax != null)
-                  Text(
-                    formatRepRange(exercise.targetRepMin, exercise.targetRepMax),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
-                  ),
-                if (exercise.lastBestSet != null && exercise.lastBestSet!.hasValues)
-                  Text(
-                    formatLastBestSet(exercise.lastBestSet),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.primary),
-                  ),
-              ],
-            ),
+              if (exercise.lastBestSet != null && exercise.lastBestSet!.hasValues)
+                workoutExerciseSubtitle(
+                  context,
+                  formatLastBestSet(exercise.lastBestSet),
+                  color: AppColors.primary,
+                ),
+            ],
           ),
           for (final slot in exercise.slots)
             LogSetSlotRow(
