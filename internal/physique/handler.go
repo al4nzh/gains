@@ -45,12 +45,7 @@ func (h *Handler) create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"id":                     scan.ID,
-		"estimated_body_fat_pct": scan.EstimatedBodyFatPct,
-		"confidence":             scan.Confidence,
-		"image_url":              scan.ImageURL,
-	})
+	c.JSON(http.StatusCreated, scan)
 }
 
 func (h *Handler) list(c *gin.Context) {

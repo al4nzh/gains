@@ -161,12 +161,19 @@ func trendFromSessionE1RMs(series []float64, singleLabel string) string {
 	return trendLabelEpsilon(delta, exerciseTrendEpsilonKg)
 }
 
-func streakFromDistinctDescDates(dates []time.Time) int {
+func streakFromDistinctDescDates(dates []time.Time, now time.Time) int {
 	if len(dates) == 0 {
 		return 0
 	}
+	today := now.UTC().Truncate(24 * time.Hour)
+	yesterday := today.AddDate(0, 0, -1)
+	latest := dates[0].UTC().Truncate(24 * time.Hour)
+	// Streak is only active if the most recent workout was today or yesterday.
+	if !latest.Equal(today) && !latest.Equal(yesterday) {
+		return 0
+	}
 	streak := 1
-	prev := dates[0].UTC().Truncate(24 * time.Hour)
+	prev := latest
 	for i := 1; i < len(dates); i++ {
 		d := dates[i].UTC().Truncate(24 * time.Hour)
 		exp := prev.AddDate(0, 0, -1)

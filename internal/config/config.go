@@ -48,13 +48,20 @@ type Config struct {
 	AIRateLimitRPS   float64
 	AIRateLimitBurst int
 
-	PhysiqueScanModel   string
-	PhysiqueUploadDir   string
+	PhysiqueScanModel      string
 	PhysiqueRateLimitRPS   float64
 	PhysiqueRateLimitBurst int
 
 	ExerciseDBEnabled bool
 	ExerciseDBBaseURL string
+
+	SMTPHost         string
+	SMTPPort         string
+	SMTPUser         string
+	SMTPPass         string
+	ResendAPIKey     string
+	EmailFrom        string
+	AppName          string
 }
 
 func Load() (*Config, error) {
@@ -115,14 +122,38 @@ func Load() (*Config, error) {
 	cfg.AIRateLimitBurst = parseInt("AI_RATE_LIMIT_BURST", 6)
 
 	cfg.PhysiqueScanModel = getEnv("PHYSIQUE_SCAN_MODEL", "gpt-5.4-mini")
-	cfg.PhysiqueUploadDir = getEnv("PHYSIQUE_UPLOAD_DIR", "data/uploads/physique")
 	cfg.PhysiqueRateLimitRPS = parseFloat("PHYSIQUE_RATE_LIMIT_RPS", 2)
 	cfg.PhysiqueRateLimitBurst = parseInt("PHYSIQUE_RATE_LIMIT_BURST", 4)
 
 	cfg.ExerciseDBEnabled = parseBool("EXERCISEDB_ENABLED", true)
 	cfg.ExerciseDBBaseURL = getEnv("EXERCISEDB_BASE_URL", "https://oss.exercisedb.dev/api/v1")
 
+	cfg.SMTPHost = strings.TrimSpace(os.Getenv("SMTP_HOST"))
+	cfg.SMTPPort = getEnv("SMTP_PORT", "587")
+	cfg.SMTPUser = strings.TrimSpace(os.Getenv("SMTP_USER"))
+	cfg.SMTPPass = os.Getenv("SMTP_PASS")
+	cfg.ResendAPIKey = strings.TrimSpace(os.Getenv("RESEND_API_KEY"))
+	cfg.EmailFrom = strings.TrimSpace(os.Getenv("EMAIL_FROM"))
+	cfg.AppName = getEnv("APP_NAME", "Gains")
+
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
+}
+
+func (c *Config) validate() error {
+	if !c.IsProduction() {
+		return nil
+	}
+	if c.EmailFrom == "" {
+		return fmt.Errorf("EMAIL_FROM is required when ENV=production (e.g. Gains <noreply@yourdomain.com>)")
+	}
+	if c.ResendAPIKey == "" && c.SMTPHost == "" {
+		return fmt.Errorf("RESEND_API_KEY or SMTP_HOST is required when ENV=production")
+	}
+	return nil
 }
 
 func (c *Config) IsProduction() bool {

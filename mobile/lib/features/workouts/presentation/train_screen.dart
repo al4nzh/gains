@@ -7,6 +7,7 @@ import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/recovery/utils/local_checkin_date.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
+import 'package:gains/core/widgets/skeleton.dart';
 import 'package:gains/features/workouts/presentation/train_workout_helpers.dart';
 import 'package:gains/features/workouts/presentation/widgets/train_history_tile.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
@@ -116,7 +117,7 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
 
   Widget _buildBody() {
     if (_loading && _workouts.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const TrainLoadingSkeleton();
     }
     if (_error != null && _workouts.isEmpty) {
       return ListView(

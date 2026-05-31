@@ -346,7 +346,7 @@ func (v *ActionValidator) validateAddExercise(ctx context.Context, userID string
 	if err := json.Unmarshal(p.Payload, &body); err != nil {
 		return nil, nil, ErrActionValidation
 	}
-	exID, clar := v.resolveExerciseID(ctx, body.ExerciseID, body.ExerciseName)
+	exID, exName, clar := v.resolveCatalogExercise(ctx, body.ExerciseID, body.ExerciseName)
 	if clar != nil {
 		return nil, clar, nil
 	}
@@ -361,7 +361,7 @@ func (v *ActionValidator) validateAddExercise(ctx context.Context, userID string
 	canonical, _ := json.Marshal(map[string]any{
 		"routine_id":     routineID,
 		"exercise_id":    exID,
-		"exercise_name":  strPtr(body.ExerciseName),
+		"exercise_name":  exName,
 		"target_sets":    body.TargetSets,
 		"target_rep_min": body.TargetRepMin,
 		"target_rep_max": body.TargetRepMax,
@@ -419,7 +419,7 @@ func (v *ActionValidator) validateReplaceExercise(ctx context.Context, userID st
 	if newID != "" {
 		idPtr = &newID
 	}
-	resolved, clar := v.resolveExerciseID(ctx, idPtr, newName)
+	resolved, resolvedName, clar := v.resolveCatalogExercise(ctx, idPtr, newName)
 	if clar != nil {
 		return nil, clar, nil
 	}
@@ -429,6 +429,9 @@ func (v *ActionValidator) validateReplaceExercise(ctx context.Context, userID st
 	var pl map[string]any
 	_ = json.Unmarshal(basePayload, &pl)
 	pl["new_exercise_id"] = resolved
+	if resolvedName != "" {
+		pl["new_exercise_name"] = resolvedName
+	}
 	pl["routine_id"] = routineID
 	canonical, _ := json.Marshal(pl)
 	tid := rowID
@@ -596,39 +599,65 @@ func (v *ActionValidator) requireRoutineExercise(ctx context.Context, userID str
 	return rowID, routineID, canonical, nil
 }
 
-func (v *ActionValidator) resolveExerciseID(ctx context.Context, id *string, name *string) (string, *actionengine.Clarification) {
+func (v *ActionValidator) resolveCatalogExercise(ctx context.Context, id *string, name *string) (exerciseID, exerciseName string, clar *actionengine.Clarification) {
 	if id != nil {
 		s := strings.TrimSpace(*id)
 		if s != "" {
-			ok, err := v.routines.ExerciseExists(ctx, s)
-			if err != nil || !ok {
-				return "", nil
+			ok, err := v.exercises.CatalogExerciseExists(ctx, s)
+			if err != nil {
+				return "", "", nil
 			}
-			return s, nil
+			if !ok {
+				return "", "", exerciseNotInLibraryClarification(strPtr(name))
+			}
+			if n, err := v.exercises.GetNamesByIDs(ctx, []string{s}); err == nil {
+				if canon, ok := n[s]; ok {
+					return s, canon, nil
+				}
+			}
+			return s, "", nil
 		}
 	}
 	n := strPtr(name)
 	if n == "" {
-		return "", nil
+		return "", "", nil
 	}
 	resolved, ambiguous, err := v.exercises.ResolveCatalogByName(ctx, n, 12)
 	if err != nil {
-		return "", nil
+		return "", "", nil
 	}
 	if resolved != "" {
-		return resolved, nil
+		canon := n
+		if names, err := v.exercises.GetNamesByIDs(ctx, []string{resolved}); err == nil {
+			if c, ok := names[resolved]; ok {
+				canon = c
+			}
+		}
+		return resolved, canon, nil
 	}
 	if len(ambiguous) == 0 {
-		return "", nil
+		return "", "", exerciseNotInLibraryClarification(n)
 	}
 	matches := make([]actionengine.ExerciseMatch, 0, len(ambiguous))
 	for _, ex := range ambiguous {
 		matches = append(matches, actionengine.ExerciseMatch{ExerciseID: ex.ID, ExerciseName: ex.Name})
 	}
-	return "", &actionengine.Clarification{
+	return "", "", &actionengine.Clarification{
 		Required:        true,
-		Message:         "Which exercise did you mean?",
+		Message:         fmt.Sprintf(`"%s" is not an exact library name. Pick one of these catalog exercises:`, n),
 		PossibleMatches: matches,
+	}
+}
+
+func exerciseNotInLibraryClarification(name string) *actionengine.Clarification {
+	name = strings.TrimSpace(name)
+	msg := "That exercise is not in the Gains exercise library. Use an exact exercise_name from exercise_library."
+	if name != "" {
+		msg = fmt.Sprintf(`"%s" is not in the Gains exercise library. Use an exact exercise_name from exercise_library.`, name)
+	}
+	return &actionengine.Clarification{
+		Required: true,
+		Message:  msg,
 	}
 }
 

@@ -16,7 +16,7 @@ type coachChatLLMResponse struct {
 func actionsCouldNotBeAppliedClarification() *actionengine.Clarification {
 	return &actionengine.Clarification{
 		Required: true,
-		Message: "Those changes could not be turned into apply buttons. Use exact routine names from your app, catalog exercise names, and routine_id from your active routines.",
+		Message: "Those changes could not be turned into apply buttons. Use exact routine names from your app, exercise names copied exactly from the Gains exercise library, and routine_id from your active routines.",
 	}
 }
 

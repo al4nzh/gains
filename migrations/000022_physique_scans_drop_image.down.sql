@@ -1,0 +1,1 @@
+ALTER TABLE physique_scans ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';

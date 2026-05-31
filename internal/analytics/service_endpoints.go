@@ -54,7 +54,7 @@ func (s *Service) Home(ctx context.Context, userID string) (*HomeResponse, error
 			CompletedLast28Days: n28,
 			AvgPerWeek:          math.Round(float64(n28)/4.0*100) / 100,
 		},
-		StreakDays: streakFromDistinctDescDates(dates),
+		StreakDays: streakFromDistinctDescDates(dates, now),
 	}
 	if len(wrows) > 0 {
 		snap := snapshotFromRow(wrows[0])

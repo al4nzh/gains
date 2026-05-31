@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class GainsTextField extends StatelessWidget {
   const GainsTextField({
@@ -13,6 +14,8 @@ class GainsTextField extends StatelessWidget {
     this.autocorrect = true,
     this.minLines = 1,
     this.maxLines = 1,
+    this.maxLength,
+    this.inputFormatters,
     this.onChanged,
   });
 
@@ -26,6 +29,8 @@ class GainsTextField extends StatelessWidget {
   final bool autocorrect;
   final int minLines;
   final int maxLines;
+  final int? maxLength;
+  final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
 
   @override
@@ -41,6 +46,8 @@ class GainsTextField extends StatelessWidget {
       enableSuggestions: !obscureText,
       minLines: minLines,
       maxLines: maxLines,
+      maxLength: maxLength,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

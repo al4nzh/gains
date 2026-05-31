@@ -43,6 +43,10 @@ func (s *Service) Chat(ctx context.Context, userID string, req ChatRequest) (*Ch
 		if err != nil {
 			return nil, err
 		}
+		coachJSON, err = s.enrichCoachContextJSON(ctx, coachJSON)
+		if err != nil {
+			return nil, err
+		}
 		_, err = s.chat.InsertMessage(ctx, convID, ChatRoleSystem, coachContextUserPrefix+string(coachJSON))
 		if err != nil {
 			return nil, err
@@ -59,7 +63,11 @@ func (s *Service) Chat(ctx context.Context, userID string, req ChatRequest) (*Ch
 	}
 
 	openAIMsgs := make([]openAIChatMessage, 0, len(history)+1)
-	openAIMsgs = append(openAIMsgs, openAIChatMessage{Role: "system", Content: coachChatSystemPrompt})
+	systemPrompt, err := s.coachChatSystemPrompt(ctx)
+	if err != nil {
+		return nil, err
+	}
+	openAIMsgs = append(openAIMsgs, openAIChatMessage{Role: "system", Content: systemPrompt})
 	for _, m := range history {
 		openAIMsgs = append(openAIMsgs, openAIChatMessage{Role: m.Role, Content: m.Content})
 	}

@@ -6,6 +6,7 @@ import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/home/data/home_api.dart';
 import 'package:gains/features/home/models/home_summary.dart';
+import 'package:gains/core/widgets/skeleton.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/home/presentation/widgets/home_stats_widgets.dart';
 import 'package:gains/features/home/presentation/widgets/home_week_activity.dart';
@@ -31,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
   RecoveryApi? _recoveryApi;
   HomeSummary? _data;
   List<bool> _weekTrained = List.filled(7, false);
+  int _streakDays = 0;
   RecoveryCheckinStatus? _readinessStatus;
   String? _error;
   bool _loading = true;
@@ -77,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
       final data = await homeFuture;
       final workouts = await workoutsFuture;
       final weekTrained = weekTrainingDaysFromWorkouts(workouts);
+      final streakDays = workoutStreakDaysFromWorkouts(workouts);
       RecoveryCheckinStatus? readiness;
       if (!_readinessDismissedSession && !LocalCheckinDate.isBefore5Am()) {
         try {
@@ -89,6 +92,7 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
       setState(() {
         _data = data;
         _weekTrained = weekTrained;
+        _streakDays = streakDays;
         _readinessStatus = readiness;
         _loading = false;
       });
@@ -172,13 +176,7 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
 
   Widget _buildBody(BuildContext context) {
     if (_loading && _data == null) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
-          const Center(child: CircularProgressIndicator()),
-        ],
-      );
+      return const HomeLoadingSkeleton();
     }
     if (_error != null && _data == null) {
       return ListView(
@@ -226,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
         const SizedBox(height: 12),
         _LatestWorkoutCard(workout: data.latestWorkout),
         const SizedBox(height: 12),
-        HomeStatsSection(data: data, weekTrained: _weekTrained),
+        HomeStatsSection(data: data, weekTrained: _weekTrained, streakDays: _streakDays),
         const SizedBox(height: 20),
         Text('Quick actions', style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 12),

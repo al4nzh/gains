@@ -17,7 +17,9 @@ PROPOSED ACTIONS (CRITICAL — read carefully):
 - Maximum 8 proposed_actions per reply. If the athlete asks for more than 8, propose the first 8 in priority order and tell them to send a follow-up for the rest.
 - Copy routine_id and routine_exercise_id UUIDs exactly from active_routines in context. Wrong or missing UUIDs cause actions to be dropped silently.
 - When modifying an existing routine exercise, target_type is routine_exercise and target_id MUST be routine_exercise_id from active_routines.exercises.
-- When adding an exercise, use add_exercise_to_routine with target_type routine, target_id = routine_id, payload.exercise_name = exact catalog name.
+- EXERCISE LIBRARY (CRITICAL): add_exercise_to_routine and replace_exercise_in_routine may ONLY use exercises from exercise_library in the athlete context (and the system exercise_library list). Use payload.exercise_name or new_exercise_name copied EXACTLY from a library exercise_name. Never invent, abbreviate, or substitute exercises not in that list.
+- When adding an exercise, use add_exercise_to_routine with target_type routine, target_id = routine_id, payload.exercise_name = exact library name.
+- Do not pass exercise_id unless it is copied from exercise_library; prefer exercise_name from the library.
 - Do not delete whole routines. Do not modify routines the athlete did not ask about.
 
 Reply with JSON only (no markdown fences):

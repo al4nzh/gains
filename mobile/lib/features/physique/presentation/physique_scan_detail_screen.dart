@@ -111,40 +111,32 @@ class _PhysiqueScanDetailScreenState extends State<PhysiqueScanDetailScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: AspectRatio(
-            aspectRatio: 3 / 4,
-            child: Image.network(
-              PhysiqueApi.imageUrl(scan.imageUrl),
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, progress) {
-                if (progress == null) return child;
-                return Container(
-                  color: AppColors.surface,
-                  child: const Center(child: CircularProgressIndicator()),
-                );
-              },
-              errorBuilder: (_, _, _) => Container(
-                color: AppColors.surface,
-                child: const Center(child: Icon(Icons.broken_image_outlined, size: 48)),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 48),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '${scan.estimatedBodyFatPct}%',
+                style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                'Estimated body fat',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 20),
-        Text(
-          '${scan.estimatedBodyFatPct}%',
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-        ),
-        Text(
-          'Estimated body fat',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 16),
         Row(
           children: [
             const Text('Confidence', style: TextStyle(color: AppColors.textSecondary)),
@@ -154,6 +146,30 @@ class _PhysiqueScanDetailScreenState extends State<PhysiqueScanDetailScreen> {
         ),
         const SizedBox(height: 8),
         Text(dateLabel, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        if (scan.summary.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Summary',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            scan.summary,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+        if (scan.reasoning.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text(
+            'Reasoning',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            scan.reasoning,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
         const SizedBox(height: 24),
         const PhysiqueDisclaimerBanner(),
       ],

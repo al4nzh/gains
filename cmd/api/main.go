@@ -18,6 +18,7 @@ import (
 	"gainsai/internal/auth"
 	"gainsai/internal/config"
 	"gainsai/internal/db"
+	"gainsai/internal/email"
 	"gainsai/internal/exercise"
 	"gainsai/internal/exercisedb"
 	"gainsai/internal/middleware"
@@ -51,8 +52,19 @@ func main() {
 
 	userRepo := user.NewRepository(pool)
 	refreshStore := auth.NewRefreshStore(pool)
+	emailTokenStore := auth.NewEmailTokenStore(pool)
+	mailer := email.NewMailer(email.Config{
+		From:         cfg.EmailFrom,
+		ResendAPIKey: cfg.ResendAPIKey,
+		SMTPHost:     cfg.SMTPHost,
+		SMTPPort:     cfg.SMTPPort,
+		SMTPUser:     cfg.SMTPUser,
+		SMTPPass:     cfg.SMTPPass,
+		AppName:      cfg.AppName,
+		Production:   cfg.IsProduction(),
+	})
 	jwtIssuer := auth.NewJWTIssuer(cfg.JWTSecret, cfg.JWTAccessTTL)
-	authService := auth.NewService(userRepo, refreshStore, jwtIssuer, cfg.JWTRefreshTTL, cfg.GoogleOAuthClientIDs, cfg.AppleOAuthClientID)
+	authService := auth.NewService(userRepo, refreshStore, emailTokenStore, mailer, jwtIssuer, cfg.JWTRefreshTTL, cfg.GoogleOAuthClientIDs, cfg.AppleOAuthClientID, cfg.AppName)
 	authHandler := auth.NewHandler(authService, userRepo)
 
 	authLimiter := middleware.NewIPRateLimiter(cfg.AuthRateLimitRPS, cfg.AuthRateLimitBurst)
@@ -72,11 +84,15 @@ func main() {
 		pingCtx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()
 		if err := pool.Ping(pingCtx); err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"status": "unhealthy",
-				"db":     "down",
-				"error":  err.Error(),
-			})
+			if cfg.IsProduction() {
+				c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy"})
+			} else {
+				c.JSON(http.StatusServiceUnavailable, gin.H{
+					"status": "unhealthy",
+					"db":     "down",
+					"error":  err.Error(),
+				})
+			}
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "db": "up"})
@@ -130,16 +146,11 @@ func main() {
 	aiHandler := ai.NewHandler(aiSvc)
 	aiHandler.RegisterRoutes(r, requireAuth, aiLimiter.Middleware())
 
-	physiqueStore, err := physique.NewStorage(cfg.PhysiqueUploadDir)
-	if err != nil {
-		log.Fatalf("physique storage: %v", err)
-	}
 	physiqueLimiter := middleware.NewIPRateLimiter(cfg.PhysiqueRateLimitRPS, cfg.PhysiqueRateLimitBurst)
 	physiqueRepo := physique.NewRepository(pool)
-	physiqueSvc := physique.NewService(physiqueRepo, physiqueStore, cfg)
+	physiqueSvc := physique.NewService(physiqueRepo, cfg)
 	physiqueHandler := physique.NewHandler(physiqueSvc)
 	physiqueHandler.RegisterRoutes(r, requireAuth, physiqueLimiter.Middleware())
-	r.Static("/uploads/physique", physiqueStore.RootDir())
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

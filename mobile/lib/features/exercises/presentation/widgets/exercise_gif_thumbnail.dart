@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gains/core/theme/app_colors.dart';
 
 /// ExerciseDB demo GIF for workout exercise rows.
-const double kWorkoutExerciseGifSize = 64;
+const double kWorkoutExerciseGifSize = 80;
 
 /// Small ExerciseDB demo GIF for workout exercise rows.
 class ExerciseGifThumbnail extends StatelessWidget {
@@ -34,7 +34,7 @@ class ExerciseGifThumbnail extends StatelessWidget {
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.fitness_center, color: AppColors.textMuted, size: 28),
+          child: Icon(Icons.fitness_center, color: AppColors.textMuted, size: size * 0.4),
         ),
       );
     }

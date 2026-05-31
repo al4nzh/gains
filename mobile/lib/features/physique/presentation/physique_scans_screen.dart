@@ -249,19 +249,20 @@ class _ScanListTile extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  PhysiqueApi.imageUrl(scan.imageUrl),
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    width: 56,
-                    height: 56,
-                    color: AppColors.surface,
-                    child: const Icon(Icons.broken_image_outlined),
-                  ),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${scan.estimatedBodyFatPct}%',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -274,16 +275,37 @@ class _ScanListTile extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        PhysiqueConfidenceChip(confidence: scan.confidence),
-                        const SizedBox(width: 8),
-                        Text(
-                          dateLabel,
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                        ),
-                      ],
-                    ),
+                    if (scan.summary.isNotEmpty)
+                      Text(
+                        scan.summary,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      )
+                    else
+                      Row(
+                        children: [
+                          PhysiqueConfidenceChip(confidence: scan.confidence),
+                          const SizedBox(width: 8),
+                          Text(
+                            dateLabel,
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    if (scan.summary.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          PhysiqueConfidenceChip(confidence: scan.confidence),
+                          const SizedBox(width: 8),
+                          Text(
+                            dateLabel,
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

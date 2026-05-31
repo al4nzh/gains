@@ -36,7 +36,11 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await session.login(_email.text, _password.text);
       if (!mounted) return;
-      context.go(session.needsOnboarding ? '/onboarding' : '/home');
+      if (session.needsEmailVerification) {
+        context.go('/verify-email');
+      } else {
+        context.go(session.needsOnboarding ? '/onboarding' : '/home');
+      }
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -94,6 +98,14 @@ class _LoginScreenState extends State<LoginScreen> {
               },
             ),
             const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _loading ? null : () => context.push('/forgot-password'),
+                child: const Text('Forgot password?'),
+              ),
+            ),
+            const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(

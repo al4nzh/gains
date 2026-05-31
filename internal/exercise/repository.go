@@ -2,6 +2,7 @@ package exercise
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -53,6 +54,26 @@ func (r *Repository) SearchCatalog(ctx context.Context, query string, limit int)
 		return nil, err
 	}
 	return pgx.CollectRows(rows, pgx.RowToStructByName[Exercise])
+}
+
+// CatalogExerciseExists reports whether id is a system catalog exercise (not user custom).
+func (r *Repository) CatalogExerciseExists(ctx context.Context, exerciseID string) (bool, error) {
+	exerciseID = strings.TrimSpace(exerciseID)
+	if exerciseID == "" {
+		return false, nil
+	}
+	var n int
+	err := r.pool.QueryRow(ctx, `
+		SELECT 1 FROM exercises
+		WHERE id = $1 AND `+catalogWhere+`
+		LIMIT 1`, exerciseID).Scan(&n)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // ResolveCatalogByName returns a unique catalog exercise id for an exact name match (case-insensitive).

@@ -28,6 +28,10 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, authLimiter, requireAuth gin.Han
 	authGroup.POST("/google", h.googleLogin)
 	authGroup.POST("/apple", h.appleLogin)
 	authGroup.POST("/refresh", h.refresh)
+	authGroup.POST("/verify-email", h.verifyEmail)
+	authGroup.POST("/forgot-password", h.forgotPassword)
+	authGroup.POST("/reset-password", h.resetPassword)
+	authGroup.POST("/resend-verification", requireAuth, h.resendVerification)
 
 	r.GET("/me", requireAuth, h.me)
 }
@@ -67,7 +71,9 @@ func (h *Handler) register(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, user.ErrEmailExists):
-			c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
+			c.JSON(http.StatusConflict, gin.H{"error": "email already registered — log in instead"})
+		case errors.Is(err, ErrOAuthEmailConflict):
+			c.JSON(http.StatusConflict, gin.H{"error": "email already registered with Google or Apple — use that sign-in method"})
 		case errors.Is(err, ErrWeakPassword):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "password too weak"})
 		default:
@@ -132,6 +138,8 @@ func writeOAuthResponse(c *gin.Context, u *user.User, tokens *TokenPair, err err
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired sign-in token"})
 		case errors.Is(err, ErrOAuthEmailConflict):
 			c.JSON(http.StatusConflict, gin.H{"error": "email already registered with email and password — sign in with email or use a different account"})
+		case errors.Is(err, user.ErrEmailExists):
+			c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
 		case errors.Is(err, ErrOAuthEmailRequired):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "email required on first Apple sign-in — pass email from the Apple authorization response"})
 		default:
@@ -180,4 +188,89 @@ func (h *Handler) me(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, u)
+}
+
+type tokenReq struct {
+	Token string `json:"token" binding:"required"`
+}
+
+type resetPasswordReq struct {
+	Token    string `json:"token" binding:"required"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+type forgotPasswordReq struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+func (h *Handler) verifyEmail(c *gin.Context) {
+	var req tokenReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	u, err := h.service.VerifyEmail(c.Request.Context(), req.Token)
+	if err != nil {
+		if errors.Is(err, ErrEmailTokenInvalid) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or expired verification code"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"user": u, "message": "email verified"})
+}
+
+func (h *Handler) resendVerification(c *gin.Context) {
+	userID, ok := UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+		return
+	}
+	err := h.service.ResendVerification(c.Request.Context(), userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrEmailAlreadyVerified):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "email already verified"})
+		case errors.Is(err, ErrNotEmailAccount):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "social sign-in accounts are already verified"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "verification email sent"})
+}
+
+func (h *Handler) forgotPassword(c *gin.Context) {
+	var req forgotPasswordReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.service.ForgotPassword(c.Request.Context(), req.Email); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "if that email exists, a reset code was sent"})
+}
+
+func (h *Handler) resetPassword(c *gin.Context) {
+	var req resetPasswordReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.service.ResetPassword(c.Request.Context(), req.Token, req.Password); err != nil {
+		switch {
+		case errors.Is(err, ErrEmailTokenInvalid):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or expired reset code"})
+		case errors.Is(err, ErrWeakPassword):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "password too weak"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "password updated"})
 }

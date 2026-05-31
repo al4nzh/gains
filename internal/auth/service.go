@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gainsai/internal/user"
+	"gainsai/internal/email"
 )
 
 var (
@@ -20,20 +21,36 @@ const minPasswordLength = 8
 type Service struct {
 	users           *user.Repository
 	refresh         *RefreshStore
+	emailTokens     *EmailTokenStore
+	mailer          email.Mailer
 	jwt             *JWTIssuer
 	refreshTTL      time.Duration
 	googleClientIDs []string
 	appleClientID   string
+	appName         string
 }
 
-func NewService(users *user.Repository, refresh *RefreshStore, jwt *JWTIssuer, refreshTTL time.Duration, googleClientIDs []string, appleClientID string) *Service {
+func NewService(
+	users *user.Repository,
+	refresh *RefreshStore,
+	emailTokens *EmailTokenStore,
+	mailer email.Mailer,
+	jwt *JWTIssuer,
+	refreshTTL time.Duration,
+	googleClientIDs []string,
+	appleClientID string,
+	appName string,
+) *Service {
 	return &Service{
 		users:           users,
 		refresh:         refresh,
+		emailTokens:     emailTokens,
+		mailer:          mailer,
 		jwt:             jwt,
 		refreshTTL:      refreshTTL,
 		googleClientIDs: googleClientIDs,
 		appleClientID:   appleClientID,
+		appName:         appName,
 	}
 }
 
@@ -51,10 +68,34 @@ func (s *Service) Register(ctx context.Context, email, password string, info Cli
 	if err != nil {
 		return nil, nil, fmt.Errorf("hash password: %w", err)
 	}
+
+	existing, err := s.users.GetByEmail(ctx, email)
+	if err != nil && !errors.Is(err, user.ErrNotFound) {
+		return nil, nil, err
+	}
+	if existing != nil {
+		if existing.EmailVerified() {
+			return nil, nil, user.ErrEmailExists
+		}
+		if existing.AuthProvider != user.AuthProviderEmail {
+			return nil, nil, ErrOAuthEmailConflict
+		}
+		if err := s.users.UpdatePassword(ctx, existing.ID, hash); err != nil {
+			return nil, nil, err
+		}
+		_ = s.sendVerifyEmail(ctx, existing)
+		pair, _, err := s.issueTokens(ctx, existing, info)
+		if err != nil {
+			return nil, nil, err
+		}
+		return existing, pair, nil
+	}
+
 	u, err := s.users.Create(ctx, email, hash, user.AuthProviderEmail)
 	if err != nil {
 		return nil, nil, err
 	}
+	_ = s.sendVerifyEmail(ctx, u)
 	pair, _, err := s.issueTokens(ctx, u, info)
 	if err != nil {
 		return nil, nil, err
@@ -71,7 +112,7 @@ func (s *Service) Login(ctx context.Context, email, password string, info Client
 		}
 		return nil, nil, err
 	}
-	if !VerifyPassword(u.PasswordHash, password) {
+	if u.PasswordHash == nil || !VerifyPassword(*u.PasswordHash, password) {
 		return nil, nil, ErrInvalidCredentials
 	}
 	pair, _, err := s.issueTokens(ctx, u, info)

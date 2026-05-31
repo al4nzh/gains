@@ -22,7 +22,22 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-const userColumns = `id, email, password_hash, auth_provider, created_at, updated_at`
+const userColumns = `id, email, password_hash, auth_provider, email_verified_at, created_at, updated_at`
+
+func (r *Repository) MarkEmailVerified(ctx context.Context, userID string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE users SET email_verified_at = NOW(), updated_at = NOW()
+		WHERE id = $1 AND email_verified_at IS NULL`, userID)
+	return err
+}
+
+func (r *Repository) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE users SET password_hash = $2, updated_at = NOW()
+		WHERE id = $1 AND auth_provider = $3`,
+		userID, passwordHash, AuthProviderEmail)
+	return err
+}
 
 func (r *Repository) Create(ctx context.Context, email, passwordHash, authProvider string) (*User, error) {
 	const q = `

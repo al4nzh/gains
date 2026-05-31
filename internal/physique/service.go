@@ -9,13 +9,12 @@ import (
 const maxImagesPerScan = 3
 
 type Service struct {
-	repo   *Repository
-	store  *Storage
-	cfg    *config.Config
+	repo *Repository
+	cfg  *config.Config
 }
 
-func NewService(repo *Repository, store *Storage, cfg *config.Config) *Service {
-	return &Service{repo: repo, store: store, cfg: cfg}
+func NewService(repo *Repository, cfg *config.Config) *Service {
+	return &Service{repo: repo, cfg: cfg}
 }
 
 func (s *Service) CreateScan(ctx context.Context, userID string, files []uploadedFile) (*Scan, error) {
@@ -31,14 +30,9 @@ func (s *Service) CreateScan(ctx context.Context, userID string, files []uploade
 		return nil, err
 	}
 
-	saved, err := s.store.SaveScanImages(userID, scanID, files)
-	if err != nil {
-		return nil, err
-	}
-
-	visionImages := make([]visionImage, len(saved))
-	for i, img := range saved {
-		visionImages[i] = visionImage{MimeType: img.MimeType, Data: img.Data}
+	visionImages := make([]visionImage, len(files))
+	for i, f := range files {
+		visionImages[i] = visionImage{MimeType: f.MimeType, Data: f.Data}
 	}
 
 	estimate, err := visionEstimate(ctx, s.cfg.OpenAIAPIKey, s.cfg.PhysiqueScanModel, visionImages)
@@ -46,8 +40,7 @@ func (s *Service) CreateScan(ctx context.Context, userID string, files []uploade
 		return nil, err
 	}
 
-	imageURL := saved[0].PublicURL
-	return s.repo.Insert(ctx, userID, scanID, imageURL, estimate.EstimatedBodyFatPct, estimate.Confidence)
+	return s.repo.Insert(ctx, userID, scanID, estimate.EstimatedBodyFatPct, estimate.Confidence, estimate.Summary, estimate.Reasoning)
 }
 
 func (s *Service) GetScan(ctx context.Context, userID, scanID string) (*Scan, error) {

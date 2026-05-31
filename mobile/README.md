@@ -47,6 +47,54 @@ flutter run --dart-define=API_BASE_URL=<url>
 
 Debug builds allow cleartext HTTP (Android debug manifest, iOS `NSAllowsLocalNetworking`).
 
+## Google + Apple Sign-In
+
+Backend routes: `POST /auth/google`, `POST /auth/apple` (see `docs/API.md`). Mobile sends provider `id_token`; server returns the same `user` + `tokens` as email login.
+
+### 1. API `.env`
+
+```env
+GOOGLE_OAUTH_CLIENT_IDS=<your-web-client-id>.apps.googleusercontent.com
+APPLE_OAUTH_CLIENT_ID=com.alanz.gains
+```
+
+`GOOGLE_OAUTH_CLIENT_IDS` must include the **Web application** client ID (the one you pass to the app as `GOOGLE_SERVER_CLIENT_ID`).
+
+### 2. Google Cloud Console
+
+1. Create a project → **APIs & Services → Credentials**
+2. **OAuth client → Web application** → copy client ID → `.env` + mobile `GOOGLE_SERVER_CLIENT_ID`
+3. **OAuth client → Android** → package `com.alanz.gains` + SHA-1 of your keystore  
+   Debug SHA-1: `cd mobile/android && ./gradlew signingReport` (or Android Studio → Gradle → signingReport)
+4. **OAuth client → iOS** → bundle `com.alanz.gains` → mobile `GOOGLE_IOS_CLIENT_ID`
+
+### 3. Apple Developer (iOS)
+
+1. App ID `com.alanz.gains` → enable **Sign in with Apple**
+2. `APPLE_OAUTH_CLIENT_ID=com.alanz.gains` on the API
+3. Open `mobile/ios/Runner.xcworkspace` in Xcode once — confirm **Sign in with Apple** capability (entitlements file is in repo)
+
+### 4. Run with dart-define
+
+**Android emulator:**
+
+```bash
+flutter run \
+  --dart-define=API_BASE_URL=http://10.0.2.2:8080 \
+  --dart-define=GOOGLE_SERVER_CLIENT_ID=<web-client-id>.apps.googleusercontent.com
+```
+
+**iOS Simulator:**
+
+```bash
+flutter run \
+  --dart-define=API_BASE_URL=http://127.0.0.1:8080 \
+  --dart-define=GOOGLE_SERVER_CLIENT_ID=<web-client-id>.apps.googleusercontent.com \
+  --dart-define=GOOGLE_IOS_CLIENT_ID=<ios-client-id>.apps.googleusercontent.com
+```
+
+Welcome screen → **Continue with Google** (Android + iOS). **Continue with Apple** (iOS only). Email signup on both.
+
 ## Run
 
 ```bash

@@ -36,8 +36,8 @@ func (r *Repository) GetOAuthIdentity(ctx context.Context, provider, providerUse
 
 func (r *Repository) CreateOAuthUser(ctx context.Context, email, authProvider string) (*User, error) {
 	const q = `
-		INSERT INTO users (email, password_hash, auth_provider)
-		VALUES ($1, NULL, $2)
+		INSERT INTO users (email, password_hash, auth_provider, email_verified_at)
+		VALUES ($1, NULL, $2, NOW())
 		RETURNING ` + userColumns
 	rows, err := r.pool.Query(ctx, q, email, authProvider)
 	if err != nil {

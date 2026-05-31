@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gains/features/auth/presentation/forgot_password_screen.dart';
 import 'package:gains/features/auth/presentation/login_screen.dart';
 import 'package:gains/features/auth/presentation/register_screen.dart';
+import 'package:gains/features/auth/presentation/reset_password_screen.dart';
 import 'package:gains/features/auth/presentation/splash_screen.dart';
+import 'package:gains/features/auth/presentation/verify_email_screen.dart';
 import 'package:gains/features/auth/presentation/welcome_screen.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/home/presentation/home_screen.dart';
@@ -40,6 +43,15 @@ class AppRouter {
         GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
         GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
         GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
+        GoRoute(path: '/forgot-password', builder: (_, _) => const ForgotPasswordScreen()),
+        GoRoute(
+          path: '/verify-email',
+          builder: (_, _) => const VerifyEmailScreen(),
+        ),
+        GoRoute(
+          path: '/reset-password',
+          builder: (_, _) => const ResetPasswordScreen(),
+        ),
         GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
         GoRoute(
           path: '/profile',
@@ -197,11 +209,22 @@ class AppRouter {
       return loc == '/' ? null : '/';
     }
 
-    const publicRoutes = {'/welcome', '/login', '/register'};
+    const publicRoutes = {
+      '/welcome',
+      '/login',
+      '/register',
+      '/forgot-password',
+      '/reset-password',
+    };
 
     if (!authed) {
-      if (publicRoutes.contains(loc)) return null;
+      if (publicRoutes.contains(loc) || loc == '/verify-email') return null;
       return '/welcome';
+    }
+
+    if (_session.needsEmailVerification) {
+      if (loc == '/verify-email') return null;
+      return '/verify-email';
     }
 
     if (onboarding) {
@@ -209,7 +232,7 @@ class AppRouter {
       return '/onboarding';
     }
 
-    if (publicRoutes.contains(loc) || loc == '/' || loc == '/onboarding') {
+    if (publicRoutes.contains(loc) || loc == '/' || loc == '/onboarding' || loc == '/verify-email') {
       return '/home';
     }
 

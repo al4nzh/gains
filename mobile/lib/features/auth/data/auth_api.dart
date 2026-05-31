@@ -34,10 +34,85 @@ class AuthApi {
     }
   }
 
+  Future<AuthResponse> loginGoogle(String idToken) async {
+    try {
+      final response = await _client.dio.post<Map<String, dynamic>>(
+        '/auth/google',
+        data: {'id_token': idToken},
+        options: Options(extra: const {'skipAuth': true}),
+      );
+      return AuthResponse.fromJson(response.data!);
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
+  Future<AuthResponse> loginApple(String idToken, {String? email}) async {
+    try {
+      final data = <String, dynamic>{'id_token': idToken};
+      if (email != null && email.trim().isNotEmpty) {
+        data['email'] = email.trim();
+      }
+      final response = await _client.dio.post<Map<String, dynamic>>(
+        '/auth/apple',
+        data: data,
+        options: Options(extra: const {'skipAuth': true}),
+      );
+      return AuthResponse.fromJson(response.data!);
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
   Future<User> me() async {
     try {
       final response = await _client.dio.get<Map<String, dynamic>>('/me');
       return User.fromJson(response.data!);
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
+  Future<User> verifyEmail(String token) async {
+    try {
+      final response = await _client.dio.post<Map<String, dynamic>>(
+        '/auth/verify-email',
+        data: {'token': token.trim()},
+        options: Options(extra: const {'skipAuth': true}),
+      );
+      return User.fromJson(response.data!['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
+  Future<void> resendVerification() async {
+    try {
+      await _client.dio.post<void>('/auth/resend-verification');
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
+  Future<void> forgotPassword(String email) async {
+    try {
+      await _client.dio.post<void>(
+        '/auth/forgot-password',
+        data: {'email': email.trim()},
+        options: Options(extra: const {'skipAuth': true}),
+      );
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
+  Future<void> resetPassword(String token, String password) async {
+    try {
+      await _client.dio.post<void>(
+        '/auth/reset-password',
+        data: {'token': token.trim(), 'password': password},
+        options: Options(extra: const {'skipAuth': true}),
+      );
     } on DioException catch (e) {
       ApiClient.throwFromDio(e);
     }

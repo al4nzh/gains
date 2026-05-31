@@ -54,7 +54,7 @@ class PhysiqueDisclaimerBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Estimates are for general fitness tracking only — not medical advice.',
+              'Estimates are for general fitness tracking only — not medical advice. Photos are analyzed and not stored.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ),

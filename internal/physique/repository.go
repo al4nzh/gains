@@ -22,18 +22,18 @@ func (r *Repository) NewScanID(ctx context.Context) (string, error) {
 	return id, err
 }
 
-func (r *Repository) Insert(ctx context.Context, userID, scanID, imageURL string, pct int, confidence string) (*Scan, error) {
+func (r *Repository) Insert(ctx context.Context, userID, scanID string, pct int, confidence, summary, reasoning string) (*Scan, error) {
 	const q = `
-		INSERT INTO physique_scans (id, user_id, image_url, estimated_body_fat_pct, confidence)
-		VALUES ($1::uuid, $2::uuid, $3, $4, $5)
-		RETURNING id::text, user_id::text, image_url, estimated_body_fat_pct, confidence, created_at`
-	row := r.pool.QueryRow(ctx, q, scanID, userID, imageURL, pct, confidence)
+		INSERT INTO physique_scans (id, user_id, estimated_body_fat_pct, confidence, summary, reasoning)
+		VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)
+		RETURNING id::text, user_id::text, estimated_body_fat_pct, confidence, summary, reasoning, created_at`
+	row := r.pool.QueryRow(ctx, q, scanID, userID, pct, confidence, summary, reasoning)
 	return scanRow(row)
 }
 
 func (r *Repository) GetByID(ctx context.Context, userID, scanID string) (*Scan, error) {
 	const q = `
-		SELECT id::text, user_id::text, image_url, estimated_body_fat_pct, confidence, created_at
+		SELECT id::text, user_id::text, estimated_body_fat_pct, confidence, summary, reasoning, created_at
 		FROM physique_scans
 		WHERE id = $1::uuid AND user_id = $2::uuid`
 	row := r.pool.QueryRow(ctx, q, scanID, userID)
@@ -52,7 +52,7 @@ func (r *Repository) ListByUser(ctx context.Context, userID string, limit int) (
 		limit = 50
 	}
 	const q = `
-		SELECT id::text, user_id::text, image_url, estimated_body_fat_pct, confidence, created_at
+		SELECT id::text, user_id::text, estimated_body_fat_pct, confidence, summary, reasoning, created_at
 		FROM physique_scans
 		WHERE user_id = $1::uuid
 		ORDER BY created_at DESC
@@ -80,7 +80,7 @@ type scannable interface {
 
 func scanRow(row scannable) (*Scan, error) {
 	var s Scan
-	if err := row.Scan(&s.ID, &s.UserID, &s.ImageURL, &s.EstimatedBodyFatPct, &s.Confidence, &s.CreatedAt); err != nil {
+	if err := row.Scan(&s.ID, &s.UserID, &s.EstimatedBodyFatPct, &s.Confidence, &s.Summary, &s.Reasoning, &s.CreatedAt); err != nil {
 		return nil, err
 	}
 	return &s, nil
@@ -88,7 +88,7 @@ func scanRow(row scannable) (*Scan, error) {
 
 func scanRows(rows pgx.Rows) (*Scan, error) {
 	var s Scan
-	if err := rows.Scan(&s.ID, &s.UserID, &s.ImageURL, &s.EstimatedBodyFatPct, &s.Confidence, &s.CreatedAt); err != nil {
+	if err := rows.Scan(&s.ID, &s.UserID, &s.EstimatedBodyFatPct, &s.Confidence, &s.Summary, &s.Reasoning, &s.CreatedAt); err != nil {
 		return nil, err
 	}
 	return &s, nil

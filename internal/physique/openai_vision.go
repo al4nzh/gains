@@ -63,7 +63,7 @@ func visionEstimate(ctx context.Context, apiKey, model string, images []visionIm
 	}
 
 	parts := []openAIContentPart{
-		{Type: "text", Text: "Estimate body fat from the attached physique photo(s). Reply with JSON only."},
+		{Type: "text", Text: "Estimate body fat from the attached physique photo(s). Include summary and reasoning. Reply with JSON only."},
 	}
 	for _, img := range images {
 		b64 := base64.StdEncoding.EncodeToString(img.Data)
@@ -132,6 +132,8 @@ func parseEstimateJSON(content string) (EstimateResult, error) {
 	var raw struct {
 		EstimatedBodyFatPct float64 `json:"estimated_body_fat_pct"`
 		Confidence          string  `json:"confidence"`
+		Summary             string  `json:"summary"`
+		Reasoning           string  `json:"reasoning"`
 	}
 	if err := json.Unmarshal([]byte(content), &raw); err != nil {
 		return EstimateResult{}, fmt.Errorf("openai: invalid estimate json: %w", err)
@@ -155,5 +157,15 @@ func parseEstimateJSON(content string) (EstimateResult, error) {
 	return EstimateResult{
 		EstimatedBodyFatPct: pct,
 		Confidence:          conf,
+		Summary:             trimNote(raw.Summary, 280),
+		Reasoning:           trimNote(raw.Reasoning, 280),
 	}, nil
+}
+
+func trimNote(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if max <= 0 || len(s) <= max {
+		return s
+	}
+	return strings.TrimSpace(s[:max-1]) + "…"
 }

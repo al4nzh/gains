@@ -38,7 +38,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       await session.register(_email.text, _password.text);
       if (!mounted) return;
-      context.go(session.needsOnboarding ? '/onboarding' : '/home');
+      if (session.needsEmailVerification) {
+        context.go('/verify-email');
+      } else {
+        context.go(session.needsOnboarding ? '/onboarding' : '/home');
+      }
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -60,81 +64,84 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 8),
-            Text(
-              'Create your account',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            const SizedBox(height: 24),
-            GainsTextField(
-              controller: _email,
-              label: 'Email',
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              autocorrect: false,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Enter your email';
-                if (!v.contains('@')) return 'Enter a valid email';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            GainsTextField(
-              controller: _password,
-              label: 'Password',
-              obscureText: _obscure,
-              textInputAction: TextInputAction.next,
-              autocorrect: false,
-              validator: (v) {
-                if (v == null || v.length < 8) {
-                  return 'At least 8 characters';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            GainsTextField(
-              controller: _confirm,
-              label: 'Confirm password',
-              obscureText: _obscure,
-              textInputAction: TextInputAction.done,
-              autocorrect: false,
-              validator: (v) {
-                if (v != _password.text) return 'Passwords do not match';
-                return null;
-              },
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _loading ? null : () => setState(() => _obscure = !_obscure),
-                child: Text(_obscure ? 'Show passwords' : 'Hide passwords'),
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 8),
+              Text(
+                'Create your account',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
-            ),
-            const Spacer(),
-            ElevatedButton(
-              onPressed: _loading ? null : _submit,
-              child: _loading
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Create account'),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: _loading ? null : () => context.pop(),
-              child: const Text('Already have an account? Log in'),
-            ),
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 24),
+              GainsTextField(
+                controller: _email,
+                label: 'Email',
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autocorrect: false,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Enter your email';
+                  if (!v.contains('@')) return 'Enter a valid email';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              GainsTextField(
+                controller: _password,
+                label: 'Password',
+                obscureText: _obscure,
+                textInputAction: TextInputAction.next,
+                autocorrect: false,
+                validator: (v) {
+                  if (v == null || v.length < 8) {
+                    return 'At least 8 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              GainsTextField(
+                controller: _confirm,
+                label: 'Confirm password',
+                obscureText: _obscure,
+                textInputAction: TextInputAction.done,
+                autocorrect: false,
+                validator: (v) {
+                  if (v != _password.text) return 'Passwords do not match';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _loading ? null : () => setState(() => _obscure = !_obscure),
+                  child: Text(_obscure ? 'Show passwords' : 'Hide passwords'),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _loading ? null : _submit,
+                child: _loading
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Create account'),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _loading ? null : () => context.pop(),
+                child: const Text('Already have an account? Log in'),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );

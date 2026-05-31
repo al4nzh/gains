@@ -37,6 +37,8 @@ dependencies:
   provider: ^6.1.5
   image_picker: ^1.1.2
   flutter_body_part_selector: ^1.2.1
+  google_sign_in: ^6.3.0
+  sign_in_with_apple: ^7.0.1
 
 dev_dependencies:
   flutter_test:

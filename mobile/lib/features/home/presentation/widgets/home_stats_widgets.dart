@@ -10,10 +10,12 @@ class HomeStatsSection extends StatelessWidget {
     super.key,
     required this.data,
     required this.weekTrained,
+    required this.streakDays,
   });
 
   final HomeSummary data;
   final List<bool> weekTrained;
+  final int streakDays;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +35,7 @@ class HomeStatsSection extends StatelessWidget {
             Expanded(
               flex: 6,
               child: _StreakCard(
-                streakDays: data.streakDays,
+                streakDays: streakDays,
                 weekTrained: weekTrained,
               ),
             ),

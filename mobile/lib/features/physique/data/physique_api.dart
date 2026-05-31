@@ -1,20 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
-import 'package:gains/core/config/api_config.dart';
 import 'package:gains/features/physique/models/physique_scan.dart';
 
 class PhysiqueApi {
   PhysiqueApi(this._client);
 
   final ApiClient _client;
-
-  static String imageUrl(String path) {
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    final base = ApiConfig.baseUrl.replaceAll(RegExp(r'/$'), '');
-    final p = path.startsWith('/') ? path : '/$path';
-    return '$base$p';
-  }
 
   Future<List<PhysiqueScan>> listScans({int limit = 50}) async {
     try {

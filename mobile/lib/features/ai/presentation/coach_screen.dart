@@ -510,15 +510,16 @@ class _CoachScreenState extends State<CoachScreen> with ShellTabAutoRefresh {
               onPressed: _deleteCurrentConversation,
             ),
           IconButton(
-            tooltip: 'Conversations',
-            icon: const Icon(Icons.history),
+            tooltip: 'Previous chats',
+            icon: const Icon(Icons.menu),
             onPressed: _showThreads,
           ),
-          IconButton(
-            tooltip: 'New chat',
-            icon: const Icon(Icons.add_comment_outlined),
-            onPressed: _startNewChat,
-          ),
+          if (_conversationId != null || _messages.isNotEmpty)
+            IconButton(
+              tooltip: 'New chat',
+              icon: const Icon(Icons.add_comment_outlined),
+              onPressed: _startNewChat,
+            ),
         ],
       ),
       body: Column(

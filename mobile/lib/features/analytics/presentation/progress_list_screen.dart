@@ -5,6 +5,7 @@ import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/analytics/data/analytics_api.dart';
 import 'package:gains/features/analytics/models/exercise_progression.dart';
+import 'package:gains/core/widgets/skeleton.dart';
 import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
 import 'package:gains/features/analytics/presentation/widgets/e1rm_trend_chart.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
@@ -122,13 +123,7 @@ class _ProgressListScreenState extends State<ProgressListScreen> with ShellTabAu
 
   Widget _buildBody(BuildContext context) {
     if (_loading && _exercises.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
-          const Center(child: CircularProgressIndicator()),
-        ],
-      );
+      return const ProgressLoadingSkeleton();
     }
     if (_error != null && _exercises.isEmpty) {
       return ListView(
