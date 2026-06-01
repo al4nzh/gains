@@ -1,0 +1,49 @@
+# Codemagic — https://codemagic.io
+# Repo layout: Flutter app is in mobile/
+#
+# In Codemagic UI also set (or override here):
+#   API_BASE_URL          — HTTPS prod API (required for TestFlight on iPhone)
+#   GOOGLE_SERVER_CLIENT_ID
+#   GOOGLE_IOS_CLIENT_ID
+# Apple: connect Developer Portal integration (name must match integrations.app_store_connect below)
+
+workflows:
+  ios-testflight:
+    name: iOS TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    working_directory: mobile
+
+    integrations:
+      app_store_connect: Codemagic  # change to your API key name in Codemagic if different
+
+    environment:
+      flutter: stable
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.alanz.gains
+      vars:
+        API_BASE_URL: https://api.gainsai.net
+        GOOGLE_SERVER_CLIENT_ID: 104018292313-uashnbjvbkcf469ga6itvm4dltmfov5q.apps.googleusercontent.com
+        GOOGLE_IOS_CLIENT_ID: 104018292313-fea134khon7empvje3uhar9jiu7027tr.apps.googleusercontent.com
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --build-number=$PROJECT_BUILD_NUMBER \
+            --dart-define=API_BASE_URL=$API_BASE_URL \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID=$GOOGLE_SERVER_CLIENT_ID \
+            --dart-define=GOOGLE_IOS_CLIENT_ID=$GOOGLE_IOS_CLIENT_ID
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
