@@ -28,6 +28,8 @@ workflows:
         GOOGLE_IOS_CLIENT_ID: 104018292313-fea134khon7empvje3uhar9jiu7027tr.apps.googleusercontent.com
 
     scripts:
+      - name: Set up code signing on Xcode project
+        script: xcode-project use-profiles
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build IPA
