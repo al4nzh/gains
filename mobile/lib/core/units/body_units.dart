@@ -8,6 +8,19 @@ abstract final class BodyUnits {
   static const double cmPerInch = 2.54;
   static const double kgPerLb = 0.45359237;
 
+  /// Slider ranges (stored values still validated against API limits).
+  static const int minHeightCm = 50;
+  static const int maxHeightCm = 220;
+  static const int minTotalInches = 48; // 4'0"
+  static const int maxTotalInches = 84; // 7'0"
+  static const int minWeightKg = 20;
+  static const int maxWeightKg = 200;
+  static const int minWeightLb = 66;
+  static const int maxWeightLb = 440;
+
+  static const double defaultHeightCm = 170;
+  static const double defaultWeightKg = 75;
+
   static BodyUnitSystem defaultForLocale(String? countryCode) {
     switch (countryCode?.toUpperCase()) {
       case 'US':
@@ -55,6 +68,45 @@ abstract final class BodyUnits {
     final n = double.tryParse(t);
     if (n == null) return null;
     return units == BodyUnitSystem.imperial ? n * kgPerLb : n;
+  }
+
+  static int cmToTotalInches(double cm) => (cm / cmPerInch).round().clamp(minTotalInches, maxTotalInches);
+
+  static double totalInchesToCm(int totalInches) => totalInches * cmPerInch;
+
+  static int kgToLb(double kg) => (kg / kgPerLb).round().clamp(minWeightLb, maxWeightLb);
+
+  static double lbToKg(int lb) => lb * kgPerLb;
+
+  static String formatHeightDisplay(double cm, BodyUnitSystem units) {
+    if (units == BodyUnitSystem.metric) {
+      return '${cm.round()} cm';
+    }
+    final totalIn = cmToTotalInches(cm);
+    final ft = totalIn ~/ 12;
+    final inch = totalIn % 12;
+    return "$ft'$inch\"";
+  }
+
+  static String formatWeightDisplay(double kg, BodyUnitSystem units) {
+    if (units == BodyUnitSystem.metric) {
+      return '${kg.round()} kg';
+    }
+    return '${kgToLb(kg)} lb';
+  }
+
+  static String? validateHeightCm(double cm) {
+    if (cm < 50 || cm > 300) {
+      return 'Height must be between 50–300 cm';
+    }
+    return null;
+  }
+
+  static String? validateWeightKg(double kg) {
+    if (kg < 20 || kg > 400) {
+      return 'Weight must be between 20–400 kg';
+    }
+    return null;
   }
 
   static String formatHeightCm(double cm, BodyUnitSystem units) {

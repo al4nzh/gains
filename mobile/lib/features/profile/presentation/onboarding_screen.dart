@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_exception.dart';
-import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/core/widgets/gains_scaffold.dart';
 import 'package:gains/core/widgets/gains_text_field.dart';
@@ -24,9 +23,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const _totalSteps = 3;
 
   final _formKey = GlobalKey<FormState>();
-  final _height = TextEditingController();
-  final _weight = TextEditingController();
+  final _bodyFieldsKey = GlobalKey<ProfileBodyFieldsState>();
   final _injuryNotes = TextEditingController();
+  double? _initialHeightCm;
+  double? _initialWeightKg;
 
   int _step = 0;
   String? _goal;
@@ -37,13 +37,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   void dispose() {
-    _height.dispose();
-    _weight.dispose();
     _injuryNotes.dispose();
     super.dispose();
   }
 
-  void _prefillFromSession(AuthSession session, BodyUnitsPreference units) {
+  void _prefillFromSession(AuthSession session) {
     if (_initialized) return;
     final p = session.profile;
     if (p == null) return;
@@ -51,13 +49,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _goal = p.goal;
     _experienceLevel = p.experience;
     _activityLevel = p.activityLevel;
-    ProfileBodyFields.prefillFromProfile(
-      height: _height,
-      weight: _weight,
-      units: units.units,
-      heightCm: p.heightCm,
-      weightKg: p.weightKg,
-    );
+    _initialHeightCm = p.heightCm;
+    _initialWeightKg = p.weightKg;
     if (p.injuryNotes != null) _injuryNotes.text = p.injuryNotes!;
     _initialized = true;
   }
@@ -79,7 +72,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           );
           return false;
         }
-        if (!_formKey.currentState!.validate()) return false;
+        final bodyErr = _bodyFieldsKey.currentState?.validate();
+        if (bodyErr != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(bodyErr)));
+          return false;
+        }
         return true;
       case 2:
         final notes = _injuryNotes.text.trim();
@@ -111,12 +108,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _submit() async {
     if (!_validateStep(0) || !_validateStep(1) || !_validateStep(2)) return;
 
-    final units = context.read<BodyUnitsPreference>().units;
-    final parsed = ProfileBodyFields.parse(
-      heightRaw: _height.text,
-      weightRaw: _weight.text,
-      units: units,
-    );
+    final body = _bodyFieldsKey.currentState!;
     final notes = _injuryNotes.text.trim();
 
     setState(() => _loading = true);
@@ -127,8 +119,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ProfileUpdate(
           goal: _goal,
           experience: _experienceLevel,
-          heightCm: parsed.heightCm,
-          weightKg: parsed.weightKg,
+          heightCm: body.heightCm,
+          weightKg: body.weightKg,
           activityLevel: _activityLevel,
           injuryNotes: notes.isEmpty ? '' : notes,
         ),
@@ -147,8 +139,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AuthSession>();
-    final units = context.watch<BodyUnitsPreference>();
-    _prefillFromSession(session, units);
+    _prefillFromSession(session);
 
     return GainsScaffold(
       appBar: AppBar(
@@ -245,8 +236,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
         const SizedBox(height: 24),
         ProfileBodyFields(
-          heightController: _height,
-          weightController: _weight,
+          key: _bodyFieldsKey,
+          initialHeightCm: _initialHeightCm,
+          initialWeightKg: _initialWeightKg,
         ),
       ],
     );

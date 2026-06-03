@@ -6,7 +6,6 @@ import 'package:gains/core/widgets/gains_scaffold.dart';
 import 'package:gains/core/widgets/gains_text_field.dart';
 import 'package:gains/core/widgets/option_chip_group.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
-import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/features/profile/models/profile_options.dart';
 import 'package:gains/features/profile/models/profile_update.dart';
 import 'package:gains/features/profile/widgets/profile_body_fields.dart';
@@ -22,9 +21,10 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _height = TextEditingController();
-  final _weight = TextEditingController();
+  final _bodyFieldsKey = GlobalKey<ProfileBodyFieldsState>();
   final _injuryNotes = TextEditingController();
+  double? _initialHeightCm;
+  double? _initialWeightKg;
 
   String? _goal;
   String? _experienceLevel;
@@ -34,13 +34,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
-    _height.dispose();
-    _weight.dispose();
     _injuryNotes.dispose();
     super.dispose();
   }
 
-  void _prefillFromSession(AuthSession session, BodyUnitsPreference units) {
+  void _prefillFromSession(AuthSession session) {
     if (_initialized) return;
     final p = session.profile;
     if (p == null) return;
@@ -48,19 +46,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _goal = p.goal;
     _experienceLevel = p.experience;
     _activityLevel = p.activityLevel;
-    ProfileBodyFields.prefillFromProfile(
-      height: _height,
-      weight: _weight,
-      units: units.units,
-      heightCm: p.heightCm,
-      weightKg: p.weightKg,
-    );
+    _initialHeightCm = p.heightCm;
+    _initialWeightKg = p.weightKg;
     if (p.injuryNotes != null) _injuryNotes.text = p.injuryNotes!;
     _initialized = true;
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final bodyErr = _bodyFieldsKey.currentState?.validate();
+    if (bodyErr != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(bodyErr)));
+      return;
+    }
 
     if (_goal == null || _experienceLevel == null || _activityLevel == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -69,12 +68,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    final unitSystem = context.read<BodyUnitsPreference>().units;
-    final parsed = ProfileBodyFields.parse(
-      heightRaw: _height.text,
-      weightRaw: _weight.text,
-      units: unitSystem,
-    );
+    final body = _bodyFieldsKey.currentState!;
     final notes = _injuryNotes.text.trim();
 
     setState(() => _loading = true);
@@ -85,8 +79,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ProfileUpdate(
           goal: _goal,
           experience: _experienceLevel,
-          heightCm: parsed.heightCm,
-          weightKg: parsed.weightKg,
+          heightCm: body.heightCm,
+          weightKg: body.weightKg,
           activityLevel: _activityLevel,
           injuryNotes: notes.isEmpty ? '' : notes,
         ),
@@ -109,8 +103,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AuthSession>();
-    final units = context.watch<BodyUnitsPreference>();
-    _prefillFromSession(session, units);
+    _prefillFromSession(session);
 
     return GainsScaffold(
       appBar: AppBar(
@@ -165,8 +158,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 24),
             ProfileBodyFields(
-              heightController: _height,
-              weightController: _weight,
+              key: _bodyFieldsKey,
+              initialHeightCm: _initialHeightCm,
+              initialWeightKg: _initialWeightKg,
             ),
             const SizedBox(height: 16),
             GainsTextField(
