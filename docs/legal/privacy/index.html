@@ -66,7 +66,9 @@
 
       <h3 style="font-size:1rem;margin:18px 0 8px;">Physique scans (optional)</h3>
       <ul>
-        <li>If you use physique scan, photos you upload are stored on our servers and sent to our AI vision provider to estimate approximate body-fat-related feedback. This is not medical imaging or diagnosis.</li>
+        <li>If you use physique scan, you choose photos from your device for that request</li>
+        <li><strong>We do not save your scan photos</strong> on Gains servers — they are processed in memory and sent to our AI vision provider (OpenAI) only to generate an estimate for that scan</li>
+        <li>We store the <strong>text results</strong> only: estimated body-fat range, confidence, summary, and reasoning. This is not medical imaging or diagnosis</li>
       </ul>
 
       <h3 style="font-size:1rem;margin:18px 0 8px;">Technical and security data</h3>
@@ -92,7 +94,7 @@
       <h2>4. How we share information</h2>
       <p>We share data only as needed to run the Service:</p>
       <ul>
-        <li><strong>OpenAI</strong> — workout/profile/chat context and physique images (when you use those features) are processed by OpenAI under their terms and privacy policy</li>
+        <li><strong>OpenAI</strong> — workout/profile/chat context, and physique photos you submit for a scan (transmitted for that request only; not kept by Gains as image files), are processed by OpenAI under their terms and privacy policy</li>
         <li><strong>Google / Apple</strong> — when you choose social sign-in, authentication is handled by those providers</li>
         <li><strong>Resend</strong> (or similar email provider) — to deliver verification and password-reset emails</li>
         <li><strong>Hosting providers</strong> — our API and database run on infrastructure we control (e.g. cloud VPS hosting)</li>
@@ -102,9 +104,8 @@
 
       <h2>5. Storage and retention</h2>
       <ul>
-        <li>Account and fitness data are stored in our database while your account is active</li>
-        <li>Physique images are stored on our servers while your account exists or until deleted with your account</li>
-        <li>When you <strong>delete your account</strong> in the app (Profile → Delete account), we permanently delete your user record and related data via our systems, including workouts, profile, tokens, and cascaded linked records</li>
+        <li>Account and fitness data (including physique scan <strong>text results</strong>, not scan photos) are stored in our database while your account is active</li>
+        <li>When you <strong>delete your account</strong> in the app (Profile → Delete account), we permanently delete your user record and related data via our systems, including workouts, profile, physique scan results, tokens, and cascaded linked records</li>
         <li>We may retain minimal backups for a limited period as part of normal server operations, then overwrite them</li>
       </ul>
 
