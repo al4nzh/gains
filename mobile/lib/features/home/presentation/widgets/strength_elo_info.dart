@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/features/home/presentation/widgets/elo_rank_visual.dart';
+import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 
 /// Bottom sheet explaining Strength Elo on Home.
 void showStrengthEloInfoSheet(BuildContext context) {
@@ -78,7 +80,26 @@ class _StrengthEloInfoContent extends StatelessWidget {
           title: 'Ranks',
           children: [
             Text(
-              'Iron → Bronze → Silver → Gold → Platinum as your rating climbs.',
+              'Your tier is based on your current Strength Elo score:',
+              style: body,
+            ),
+            const SizedBox(height: 10),
+            const _RankThresholdList(),
+            const SizedBox(height: 8),
+            Text(
+              'Ratings are capped at 3600. On Home, the ring shows how close you are to the next rank (not used at Platinum — that is the highest tier).',
+              style: body,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _Section(
+          title: 'Percentile',
+          children: [
+            Text(
+              'When enough lifters on Gains have a Strength Elo, Home shows how you '
+              'compare — e.g. “72nd percentile” or “Top 12%”. It counts only people with '
+              'an unlocked rating, not everyone on the app.',
               style: body,
             ),
           ],
@@ -94,6 +115,57 @@ class _StrengthEloInfoContent extends StatelessWidget {
             ),
           ],
         ),
+      ],
+    );
+  }
+}
+
+class _RankThresholdList extends StatelessWidget {
+  const _RankThresholdList();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final tier in EloRankTiers.all)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: eloRankColor(tier.key).withValues(alpha: 0.12),
+                    border: Border.all(
+                      color: eloRankColor(tier.key).withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Text(
+                    humanizeSnake(tier.key)[0].toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: eloRankColor(tier.key),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    EloRankTiers.eloRangeLabel(tier),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

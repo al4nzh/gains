@@ -122,7 +122,8 @@ flutter build appbundle \
 - [ ] Strong `JWT_SECRET` (32+ bytes)
 - [ ] Google OAuth Web + Android (+ iOS) clients
 - [ ] Test: register → email arrives → verify → login → forgot password
-- [ ] Privacy policy URL (store requirement)
+- [ ] Privacy policy URL live at `https://gainsai.net/privacy` (source: `docs/legal/`, see `docs/legal/README.md`)
+- [ ] Terms URL live at `https://gainsai.net/terms` (app links via `TERMS_URL`)
 - [ ] Release signing (Android keystore, iOS certs)
 
 ---
@@ -130,7 +131,7 @@ flutter build appbundle \
 ## 7. After beta (public store)
 
 - [ ] Apple Sign-In on iOS (required if Google/email social login)
-- [ ] Account deletion flow
+- [x] Account deletion flow (`DELETE /me`, Profile → Delete account)
 - [ ] Fix physique photo public URL issue before enabling scans widely
 - [ ] Monitoring / backups on Postgres
 

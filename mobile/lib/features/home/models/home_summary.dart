@@ -2,6 +2,7 @@ class HomeSummary {
   const HomeSummary({
     this.strengthElo,
     this.strengthEloRank,
+    this.strengthEloPercentile,
     this.eloChange30d,
     required this.sharpness,
     this.latestWorkout,
@@ -13,6 +14,7 @@ class HomeSummary {
 
   final int? strengthElo;
   final String? strengthEloRank;
+  final int? strengthEloPercentile;
   final int? eloChange30d;
   final SharpnessOverview sharpness;
   final WorkoutSnapshot? latestWorkout;
@@ -25,6 +27,7 @@ class HomeSummary {
     return HomeSummary(
       strengthElo: json['strength_elo'] as int?,
       strengthEloRank: json['strength_elo_rank'] as String?,
+      strengthEloPercentile: json['strength_elo_percentile'] as int?,
       eloChange30d: json['elo_change_30d'] as int?,
       sharpness: SharpnessOverview.fromJson(
         json['sharpness'] as Map<String, dynamic>? ?? {},

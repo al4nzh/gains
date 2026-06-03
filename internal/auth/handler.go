@@ -34,6 +34,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, authLimiter, requireAuth gin.Han
 	authGroup.POST("/resend-verification", requireAuth, h.resendVerification)
 
 	r.GET("/me", requireAuth, h.me)
+	r.DELETE("/me", requireAuth, h.deleteAccount)
 }
 
 type registerReq struct {
@@ -188,6 +189,23 @@ func (h *Handler) me(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, u)
+}
+
+func (h *Handler) deleteAccount(c *gin.Context) {
+	userID, ok := UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+		return
+	}
+	if err := h.service.DeleteAccount(c.Request.Context(), userID); err != nil {
+		if errors.Is(err, user.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "account deleted"})
 }
 
 type tokenReq struct {

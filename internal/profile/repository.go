@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"gainsai/internal/strength"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -83,4 +85,21 @@ func (r *Repository) UpsertStrengthEloTx(ctx context.Context, tx pgx.Tx, userID 
 			updated_at = NOW()
 	`, userID, elo, rank, change30d)
 	return err
+}
+
+// StrengthEloPercentile returns how many percent of rated lifters have strictly lower Elo (0–100).
+// ok is false when there are not enough rated profiles for a meaningful comparison.
+func (r *Repository) StrengthEloPercentile(ctx context.Context, elo int) (percentile int, ok bool, err error) {
+	var below, total int
+	err = r.pool.QueryRow(ctx, `
+		SELECT
+			COUNT(*) FILTER (WHERE strength_elo IS NOT NULL AND strength_elo < $1),
+			COUNT(*) FILTER (WHERE strength_elo IS NOT NULL)
+		FROM profiles
+	`, elo).Scan(&below, &total)
+	if err != nil {
+		return 0, false, err
+	}
+	p, ok := strength.PercentileFromCounts(below, total)
+	return p, ok, nil
 }

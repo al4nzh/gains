@@ -14,6 +14,7 @@ import (
 type HomeResponse struct {
 	StrengthElo            *int               `json:"strength_elo,omitempty"`
 	StrengthEloRank        *string            `json:"strength_elo_rank,omitempty"`
+	StrengthEloPercentile  *int               `json:"strength_elo_percentile,omitempty"`
 	EloChange30d           *int               `json:"elo_change_30d,omitempty"`
 	Sharpness              *SharpnessOverview `json:"sharpness"`
 	LatestWorkout          *WorkoutSnapshot   `json:"latest_workout,omitempty"`

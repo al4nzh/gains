@@ -3,10 +3,14 @@ import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:flutter_body_part_selector/flutter_body_part_selector.dart';
+import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/routines/data/routine_api.dart';
 import 'package:gains/features/routines/models/routine_template.dart';
 import 'package:gains/features/routines/presentation/routine_formatters.dart';
 import 'package:gains/features/routines/presentation/widgets/routine_dialogs.dart';
+import 'package:gains/features/workouts/presentation/muscle_group_mapping.dart';
+import 'package:gains/features/workouts/presentation/widgets/session_muscles_diagram.dart';
 import 'package:provider/provider.dart';
 
 class TemplateDetailScreen extends StatefulWidget {
@@ -21,6 +25,8 @@ class TemplateDetailScreen extends StatefulWidget {
 class _TemplateDetailScreenState extends State<TemplateDetailScreen> {
   RoutineApi? _api;
   RoutineTemplate? _template;
+  Set<Muscle> _highlightedMuscles = {};
+  List<String> _trainedGroupLabels = [];
   String? _error;
   bool _loading = true;
   bool _copying = false;
@@ -39,10 +45,25 @@ class _TemplateDetailScreenState extends State<TemplateDetailScreen> {
       _error = null;
     });
     try {
-      final template = await api.getTemplate(widget.templateId);
+      final client = context.read<ApiClient>();
+      final templateFuture = api.getTemplate(widget.templateId);
+      final muscleMapFuture = ExerciseApi(client).loadMuscleGroupMap();
+      final template = await templateFuture;
+      final muscleMap = await muscleMapFuture;
       if (!mounted) return;
+      final exerciseIds = template.exercises.map((e) => e.exerciseId).toSet();
+      final groups = catalogMuscleGroupsForExerciseIds(
+        exerciseIds: exerciseIds,
+        exerciseIdToMuscleGroup: muscleMap,
+      );
+      final highlighted = highlightedMusclesForExerciseIds(
+        exerciseIds: exerciseIds,
+        exerciseIdToMuscleGroup: muscleMap,
+      );
       setState(() {
         _template = template;
+        _highlightedMuscles = highlighted;
+        _trainedGroupLabels = trainedGroupLabelsFromIds(groups);
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -148,6 +169,14 @@ class _TemplateDetailScreenState extends State<TemplateDetailScreen> {
           '${t.exerciseCount} exercises',
           style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.textMuted),
         ),
+        if (t.exercises.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          SessionMusclesDiagram(
+            title: 'Muscles targeted by this template',
+            highlightedMuscles: _highlightedMuscles,
+            trainedGroupLabels: _trainedGroupLabels,
+          ),
+        ],
         const SizedBox(height: 12),
         ...t.exercises.map((e) {
           final subtitle = templateExerciseSubtitle(e);

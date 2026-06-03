@@ -1,3 +1,23 @@
+/// [percentile] = share of rated lifters you're stronger than (0–100, from API).
+String formatStrengthPercentile(int percentile) {
+  if (percentile >= 90) {
+    final top = (100 - percentile).clamp(1, 50);
+    return top == 1 ? 'Top 1%' : 'Top $top%';
+  }
+  return '$percentile${_ordinalSuffix(percentile)} percentile';
+}
+
+String _ordinalSuffix(int n) {
+  final mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return 'th';
+  return switch (n % 10) {
+    1 => 'st',
+    2 => 'nd',
+    3 => 'rd',
+    _ => 'th',
+  };
+}
+
 String formatEloChange(int? delta) {
   if (delta == null) return '—';
   if (delta > 0) return '+$delta';

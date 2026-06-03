@@ -29,6 +29,8 @@ workflows:
         API_BASE_URL: https://api.gainsai.net
         GOOGLE_SERVER_CLIENT_ID: 104018292313-uashnbjvbkcf469ga6itvm4dltmfov5q.apps.googleusercontent.com
         GOOGLE_IOS_CLIENT_ID: 104018292313-fea134khon7empvje3uhar9jiu7027tr.apps.googleusercontent.com
+        PRIVACY_POLICY_URL: https://gainsai.net/privacy
+        TERMS_URL: https://gainsai.net/terms
 
     scripts:
       - name: Set up code signing on Xcode project
@@ -44,7 +46,9 @@ workflows:
             --export-options-plist=ios/ExportOptions.plist \
             --dart-define=API_BASE_URL=$API_BASE_URL \
             --dart-define=GOOGLE_SERVER_CLIENT_ID=$GOOGLE_SERVER_CLIENT_ID \
-            --dart-define=GOOGLE_IOS_CLIENT_ID=$GOOGLE_IOS_CLIENT_ID
+            --dart-define=GOOGLE_IOS_CLIENT_ID=$GOOGLE_IOS_CLIENT_ID \
+            --dart-define=PRIVACY_POLICY_URL=$PRIVACY_POLICY_URL \
+            --dart-define=TERMS_URL=$TERMS_URL
 
     artifacts:
       - build/ios/ipa/*.ipa

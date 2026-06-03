@@ -19,11 +19,14 @@ class Profile {
   final String? injuryNotes;
   final DateTime? updatedAt;
 
-  /// FRONTEND_APP: show setup when goal, experience, or weight is missing.
+  /// Show profile setup until required fields for home/coach are present.
   bool get needsOnboarding {
     final g = goal?.trim();
     final e = experience?.trim();
+    final a = activityLevel?.trim();
     if (g == null || g.isEmpty || e == null || e.isEmpty) return true;
+    if (a == null || a.isEmpty) return true;
+    if (heightCm == null || heightCm! <= 0) return true;
     if (weightKg == null || weightKg! <= 0) return true;
     return false;
   }

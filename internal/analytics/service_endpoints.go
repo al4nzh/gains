@@ -44,9 +44,19 @@ func (s *Service) Home(ctx context.Context, userID string) (*HomeResponse, error
 		return nil, err
 	}
 
+	var eloPercentile *int
+	if prof.StrengthElo != nil {
+		if p, ok, err := s.profile.StrengthEloPercentile(ctx, *prof.StrengthElo); err != nil {
+			return nil, err
+		} else if ok {
+			eloPercentile = &p
+		}
+	}
+
 	out := &HomeResponse{
 		StrengthElo:            prof.StrengthElo,
 		StrengthEloRank:        prof.StrengthEloRank,
+		StrengthEloPercentile:  eloPercentile,
 		EloChange30d:           prof.StrengthEloChange30d,
 		WeeklyVolumeKg:         math.Round(vol7*100) / 100,
 		WeeklyVolumeWindowDays: 7,

@@ -68,6 +68,17 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*User, error) {
 	return &u, nil
 }
 
+func (r *Repository) DeleteByID(ctx context.Context, id string) error {
+	tag, err := r.pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *Repository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	rows, _ := r.pool.Query(ctx, `SELECT `+userColumns+` FROM users WHERE email = $1`, email)
 	u, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[User])

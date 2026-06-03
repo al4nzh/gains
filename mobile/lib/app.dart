@@ -34,17 +34,14 @@ class _GainsAppState extends State<GainsApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<AuthSession>.value(
-      value: widget.authSession,
-      child: ChangeNotifierProvider<ShellTabRefresh>.value(
-        value: _shellTabRefresh,
-        child: MaterialApp.router(
-          title: 'Gains',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.dark,
-          themeMode: ThemeMode.dark,
-          routerConfig: _appRouter.router,
-        ),
+    return ChangeNotifierProvider<ShellTabRefresh>.value(
+      value: _shellTabRefresh,
+      child: MaterialApp.router(
+        title: 'Gains',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
+        routerConfig: _appRouter.router,
       ),
     );
   }

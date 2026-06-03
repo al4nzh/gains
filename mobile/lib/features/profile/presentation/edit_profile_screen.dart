@@ -6,8 +6,10 @@ import 'package:gains/core/widgets/gains_scaffold.dart';
 import 'package:gains/core/widgets/gains_text_field.dart';
 import 'package:gains/core/widgets/option_chip_group.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/features/profile/models/profile_options.dart';
 import 'package:gains/features/profile/models/profile_update.dart';
+import 'package:gains/features/profile/widgets/profile_body_fields.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
 
@@ -38,7 +40,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
-  void _prefillFromSession(AuthSession session) {
+  void _prefillFromSession(AuthSession session, BodyUnitsPreference units) {
     if (_initialized) return;
     final p = session.profile;
     if (p == null) return;
@@ -46,15 +48,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _goal = p.goal;
     _experienceLevel = p.experience;
     _activityLevel = p.activityLevel;
-    if (p.heightCm != null) _height.text = _formatNum(p.heightCm!);
-    if (p.weightKg != null) _weight.text = _formatNum(p.weightKg!);
+    ProfileBodyFields.prefillFromProfile(
+      height: _height,
+      weight: _weight,
+      units: units.units,
+      heightCm: p.heightCm,
+      weightKg: p.weightKg,
+    );
     if (p.injuryNotes != null) _injuryNotes.text = p.injuryNotes!;
     _initialized = true;
-  }
-
-  String _formatNum(double v) {
-    if (v == v.roundToDouble()) return v.toInt().toString();
-    return v.toString();
   }
 
   Future<void> _submit() async {
@@ -67,8 +69,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    final height = double.parse(_height.text.replaceAll(',', '.').trim());
-    final weight = double.parse(_weight.text.replaceAll(',', '.').trim());
+    final unitSystem = context.read<BodyUnitsPreference>().units;
+    final parsed = ProfileBodyFields.parse(
+      heightRaw: _height.text,
+      weightRaw: _weight.text,
+      units: unitSystem,
+    );
     final notes = _injuryNotes.text.trim();
 
     setState(() => _loading = true);
@@ -79,8 +85,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ProfileUpdate(
           goal: _goal,
           experience: _experienceLevel,
-          heightCm: height,
-          weightKg: weight,
+          heightCm: parsed.heightCm,
+          weightKg: parsed.weightKg,
           activityLevel: _activityLevel,
           injuryNotes: notes.isEmpty ? '' : notes,
         ),
@@ -103,7 +109,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AuthSession>();
-    _prefillFromSession(session);
+    final units = context.watch<BodyUnitsPreference>();
+    _prefillFromSession(session, units);
 
     return GainsScaffold(
       appBar: AppBar(
@@ -157,45 +164,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               onSelected: (v) => setState(() => _activityLevel = v),
             ),
             const SizedBox(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: GainsTextField(
-                    controller: _height,
-                    label: 'Height (cm)',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    textInputAction: TextInputAction.next,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Required';
-                      }
-                      final n = double.tryParse(v.replaceAll(',', '.'));
-                      if (n == null) return 'Enter a number';
-                      if (n < 50 || n > 300) return '50–300 cm';
-                      return null;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GainsTextField(
-                    controller: _weight,
-                    label: 'Weight (kg)',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    textInputAction: TextInputAction.next,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Required';
-                      }
-                      final n = double.tryParse(v.replaceAll(',', '.'));
-                      if (n == null) return 'Enter a number';
-                      if (n < 20 || n > 400) return '20–400 kg';
-                      return null;
-                    },
-                  ),
-                ),
-              ],
+            ProfileBodyFields(
+              heightController: _height,
+              weightController: _weight,
             ),
             const SizedBox(height: 16),
             GainsTextField(

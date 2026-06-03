@@ -39,6 +39,8 @@ dependencies:
   flutter_body_part_selector: ^1.2.1
   google_sign_in: ^6.3.0
   sign_in_with_apple: ^7.0.1
+  shared_preferences: ^2.5.3
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

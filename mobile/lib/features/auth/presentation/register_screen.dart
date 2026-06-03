@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/widgets/gains_scaffold.dart';
 import 'package:gains/core/widgets/gains_text_field.dart';
+import 'package:gains/core/widgets/legal_footer.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:provider/provider.dart';
 
@@ -139,6 +140,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 onPressed: _loading ? null : () => context.pop(),
                 child: const Text('Already have an account? Log in'),
               ),
+              const SizedBox(height: 16),
+              const LegalFooter(prefix: 'By creating an account, you agree to our '),
               const SizedBox(height: 8),
             ],
           ),

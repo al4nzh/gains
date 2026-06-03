@@ -30,6 +30,7 @@ class AuthSession extends ChangeNotifier {
   AuthStatus status = AuthStatus.loading;
   User? user;
   Profile? profile;
+  bool _gettingStartedPending = false;
 
   bool get isLoading => status == AuthStatus.loading;
   bool get isAuthenticated => status == AuthStatus.authenticated;
@@ -85,8 +86,16 @@ class AuthSession extends ChangeNotifier {
     await _applyAuthResponse(response);
   }
 
+  /// True once after [completeOnboarding]; home screen should show getting-started UI.
+  bool consumeGettingStartedPrompt() {
+    if (!_gettingStartedPending) return false;
+    _gettingStartedPending = false;
+    return true;
+  }
+
   Future<void> completeOnboarding(ProfileUpdate update) async {
     await updateProfile(update);
+    _gettingStartedPending = true;
   }
 
   Future<void> updateProfile(ProfileUpdate update) async {
@@ -122,6 +131,17 @@ class AuthSession extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await _oauthService.signOutGoogle();
+    await _tokenStorage.clear();
+    user = null;
+    profile = null;
+    status = AuthStatus.unauthenticated;
+    notifyListeners();
+  }
+
+  /// Permanently deletes the account on the server, then clears local session.
+  Future<void> deleteAccount() async {
+    await _authApi.deleteAccount();
     await _oauthService.signOutGoogle();
     await _tokenStorage.clear();
     user = null;

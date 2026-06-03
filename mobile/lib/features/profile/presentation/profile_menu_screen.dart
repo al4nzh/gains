@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:provider/provider.dart';
@@ -53,6 +54,11 @@ class ProfileMenuScreen extends StatelessWidget {
           ),
           const Divider(height: 1),
           ListTile(
+            leading: const Icon(Icons.delete_forever_outlined, color: AppColors.error),
+            title: const Text('Delete account', style: TextStyle(color: AppColors.error)),
+            onTap: () => _confirmDeleteAccount(context, session),
+          ),
+          ListTile(
             leading: const Icon(Icons.logout, color: AppColors.error),
             title: const Text('Log out', style: TextStyle(color: AppColors.error)),
             onTap: () async {
@@ -63,5 +69,43 @@ class ProfileMenuScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+Future<void> _confirmDeleteAccount(BuildContext context, AuthSession session) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete account?'),
+      content: const Text(
+        'This permanently deletes your Gains account, workouts, routines, and all other data. This cannot be undone.',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+          child: const Text('Delete account'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  try {
+    await session.deleteAccount();
+    if (context.mounted) context.go('/welcome');
+  } on ApiException catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    }
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not delete account. Try again.')),
+      );
+    }
   }
 }

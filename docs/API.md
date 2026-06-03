@@ -176,6 +176,22 @@ Mobile or web app completes Google Sign-In, then sends the Google **`id_token`**
 
 ---
 
+### `DELETE /me`
+
+**Auth:** required
+
+Permanently deletes the authenticated user and all related data (workouts, profile, refresh tokens, etc. via database cascades).
+
+**200:**
+
+```json
+{ "message": "account deleted" }
+```
+
+**401:** missing/invalid JWT · **404:** user not found · **500:** internal error
+
+---
+
 ### Token pair (`tokens`)
 
 ```json
@@ -999,7 +1015,7 @@ List scans for the user, newest first. Query **`limit`** (default **50**, max **
 
 Implemented in this repository:
 
-- Health, auth (`/auth/*`, `/me`, Google/Apple token login), profile, exercise catalog, user routines, routine templates, **workouts**, **recovery check-ins**, **home + analytics**, **AI** (analyze workout, chat, actions, **`POST /ai/generate-routines`**, **`POST /ai/generated-routines/:id/confirm`**), **physique scans**.
+- Health, auth (`/auth/*`, `GET`/`DELETE /me`, Google/Apple token login), profile, exercise catalog, user routines, routine templates, **workouts**, **recovery check-ins**, **home + analytics**, **AI** (analyze workout, chat, actions, **`POST /ai/generate-routines`**, **`POST /ai/generated-routines/:id/confirm`**), **physique scans**.
 
 
 ---

@@ -4,11 +4,13 @@ import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
+import 'package:gains/features/profile/presentation/getting_started_sheet.dart';
 import 'package:gains/features/home/data/home_api.dart';
 import 'package:gains/features/home/models/home_summary.dart';
 import 'package:gains/core/widgets/skeleton.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/home/presentation/widgets/home_stats_widgets.dart';
+import 'package:gains/features/home/presentation/widgets/elo_rank_visual.dart';
 import 'package:gains/features/home/presentation/widgets/strength_elo_info.dart';
 import 'package:gains/features/home/presentation/widgets/home_week_activity.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
@@ -61,7 +63,19 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _load();
+      _maybeShowGettingStarted();
+    });
+  }
+
+  void _maybeShowGettingStarted() {
+    final session = context.read<AuthSession>();
+    if (!session.consumeGettingStartedPrompt()) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showGettingStartedSheet(context);
+    });
   }
 
   Future<void> _load({bool silent = false}) async {
@@ -244,71 +258,64 @@ class _EloCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final elo = data.strengthElo;
     final rank = data.strengthEloRank;
+    final percentile = data.strengthEloPercentile;
     final change = data.eloChange30d;
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text('Strength Elo', style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(width: 4),
-                IconButton(
-                  tooltip: 'What is Strength Elo?',
-                  onPressed: () => showStrengthEloInfoSheet(context),
-                  icon: const Icon(Icons.info_outline, size: 20),
-                  color: AppColors.textMuted,
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                ),
-              ],
-            ),
-            if (elo == null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Log bench, squat, deadlift, OHP, or barbell row — with bodyweight on your profile — to unlock.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textMuted,
-                    ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  elo?.toString() ?? '—',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        height: 1,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('Strength Elo', style: Theme.of(context).textTheme.labelLarge),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: 'What is Strength Elo?',
+                        onPressed: () => showStrengthEloInfoSheet(context),
+                        icon: const Icon(Icons.info_outline, size: 20),
+                        color: AppColors.textMuted,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       ),
-                ),
-                const SizedBox(width: 12),
-                if (rank != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Text(
-                      humanizeSnake(rank),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
+                    ],
+                  ),
+                  if (elo == null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Log bench, squat, deadlift, OHP, or barbell row — with bodyweight on your profile — to unlock.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textMuted,
                           ),
                     ),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(
+                    elo?.toString() ?? '—',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                          height: 1,
+                        ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '30d ${formatEloChange(change)}',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: _changeColor(change),
+                  const SizedBox(height: 8),
+                  Text(
+                    '30d ${formatEloChange(change)}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: _changeColor(change),
+                        ),
                   ),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
+            EloRankVisual(elo: elo, rankKey: rank, percentile: percentile),
           ],
         ),
       ),

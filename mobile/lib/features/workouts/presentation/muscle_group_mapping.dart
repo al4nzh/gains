@@ -79,8 +79,8 @@ Set<Muscle> highlightedMusclesForSession({
   return muscles;
 }
 
-/// Highlight set for [InteractiveBodySvg] from a set of exercise IDs.
-Set<Muscle> highlightedMusclesForExerciseIds({
+/// Catalog muscle_group values for a set of exercise IDs.
+Set<String> catalogMuscleGroupsForExerciseIds({
   required Set<String> exerciseIds,
   required Map<String, String> exerciseIdToMuscleGroup,
 }) {
@@ -89,6 +89,18 @@ Set<Muscle> highlightedMusclesForExerciseIds({
     final g = exerciseIdToMuscleGroup[id];
     if (g != null && g.isNotEmpty) groups.add(g);
   }
+  return groups;
+}
+
+/// Highlight set for [InteractiveBodySvg] from a set of exercise IDs.
+Set<Muscle> highlightedMusclesForExerciseIds({
+  required Set<String> exerciseIds,
+  required Map<String, String> exerciseIdToMuscleGroup,
+}) {
+  final groups = catalogMuscleGroupsForExerciseIds(
+    exerciseIds: exerciseIds,
+    exerciseIdToMuscleGroup: exerciseIdToMuscleGroup,
+  );
 
   final muscles = <Muscle>{};
   for (final g in groups) {

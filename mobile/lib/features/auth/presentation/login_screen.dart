@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/widgets/gains_scaffold.dart';
 import 'package:gains/core/widgets/gains_text_field.dart';
+import 'package:gains/core/widgets/legal_footer.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:provider/provider.dart';
 
@@ -132,6 +133,11 @@ class _LoginScreenState extends State<LoginScreen> {
             TextButton(
               onPressed: _loading ? null : () => context.push('/register'),
               child: const Text('Need an account? Sign up'),
+            ),
+            const SizedBox(height: 12),
+            const LegalFooter(
+              prefix: 'By logging in, you agree to our ',
+              center: false,
             ),
             const SizedBox(height: 8),
           ],

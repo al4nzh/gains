@@ -64,6 +64,14 @@ class AuthApi {
     }
   }
 
+  Future<void> deleteAccount() async {
+    try {
+      await _client.dio.delete<void>('/me');
+    } on DioException catch (e) {
+      ApiClient.throwFromDio(e);
+    }
+  }
+
   Future<User> me() async {
     try {
       final response = await _client.dio.get<Map<String, dynamic>>('/me');

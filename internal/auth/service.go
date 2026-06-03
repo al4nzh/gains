@@ -179,6 +179,12 @@ func (s *Service) issueTokens(ctx context.Context, u *user.User, info ClientInfo
 	}, id, nil
 }
 
+// DeleteAccount permanently removes the user and all related data (DB cascades).
+func (s *Service) DeleteAccount(ctx context.Context, userID string) error {
+	_ = s.refresh.RevokeAllForUser(ctx, userID)
+	return s.users.DeleteByID(ctx, userID)
+}
+
 func normalizeEmail(s string) string {
 	return strings.ToLower(strings.TrimSpace(s))
 }
