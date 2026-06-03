@@ -41,10 +41,15 @@ func (h *Handler) list(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
 		return
 	}
+	muscleGroup, ok := normalizeCatalogMuscleGroup(c.Query("muscle_group"))
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid muscle_group"})
+		return
+	}
 	limit := parsePositiveInt(c.DefaultQuery("limit", strconv.Itoa(defaultListLimit)), defaultListLimit, maxListLimit)
 	offset := parseNonNegativeInt(c.DefaultQuery("offset", "0"), 0, 10_000)
 
-	items, err := h.repo.ListCatalog(c.Request.Context(), limit, offset)
+	items, err := h.repo.ListCatalog(c.Request.Context(), muscleGroup, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
@@ -52,7 +57,11 @@ func (h *Handler) list(c *gin.Context) {
 	if items == nil {
 		items = []Exercise{}
 	}
-	c.JSON(http.StatusOK, gin.H{"exercises": items})
+	resp := gin.H{"exercises": items}
+	if muscleGroup != "" {
+		resp["muscle_group"] = muscleGroup
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *Handler) search(c *gin.Context) {
@@ -69,9 +78,14 @@ func (h *Handler) search(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "q must be at most 80 characters"})
 		return
 	}
+	muscleGroup, ok := normalizeCatalogMuscleGroup(c.Query("muscle_group"))
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid muscle_group"})
+		return
+	}
 	limit := parsePositiveInt(c.DefaultQuery("limit", strconv.Itoa(maxSearchLimit)), maxSearchLimit, maxSearchLimit)
 
-	items, err := h.repo.SearchCatalog(c.Request.Context(), q, limit)
+	items, err := h.repo.SearchCatalog(c.Request.Context(), q, muscleGroup, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
@@ -79,7 +93,11 @@ func (h *Handler) search(c *gin.Context) {
 	if items == nil {
 		items = []Exercise{}
 	}
-	c.JSON(http.StatusOK, gin.H{"exercises": items, "q": q})
+	resp := gin.H{"exercises": items, "q": q}
+	if muscleGroup != "" {
+		resp["muscle_group"] = muscleGroup
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 type gifLookupRequest struct {

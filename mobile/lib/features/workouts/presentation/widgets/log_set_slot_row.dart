@@ -20,7 +20,8 @@ class LogSetSlotRow extends StatefulWidget {
     this.draftReps,
     this.draftWeight,
     required this.onDraftChanged,
-    required this.onChanged,
+    required this.onSetSaved,
+    required this.onSetDeleted,
   });
 
   final String workoutId;
@@ -32,13 +33,16 @@ class LogSetSlotRow extends StatefulWidget {
   final String? draftReps;
   final String? draftWeight;
   final void Function(String reps, String weight) onDraftChanged;
-  final VoidCallback onChanged;
+  final void Function(WorkoutSet set) onSetSaved;
+  final VoidCallback onSetDeleted;
 
   @override
   State<LogSetSlotRow> createState() => _LogSetSlotRowState();
 }
 
 class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveClientMixin {
+  static const _minSavingVisible = Duration(milliseconds: 400);
+
   late final TextEditingController _reps;
   late final TextEditingController _weight;
   bool _saving = false;
@@ -115,6 +119,14 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
     super.dispose();
   }
 
+  Future<void> _waitMinSavingDuration(DateTime started) async {
+    final elapsed = DateTime.now().difference(started);
+    final remaining = _minSavingVisible - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
+  }
+
   Future<void> _save() async {
     final reps = int.tryParse(_reps.text.trim());
     final weight = double.tryParse(_weight.text.trim());
@@ -126,25 +138,26 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
     }
 
     final api = WorkoutApi(context.read<ApiClient>());
+    final started = DateTime.now();
     setState(() => _saving = true);
     try {
-      if (widget.logged != null) {
-        await api.updateSet(
-          widget.workoutId,
-          widget.logged!.id,
-          reps: reps,
-          weightKg: weight,
-        );
-      } else {
-        await api.addSet(
-          widget.workoutId,
-          exerciseId: widget.exerciseId,
-          reps: reps,
-          weightKg: weight,
-          setNumber: widget.setNumber,
-        );
-      }
-      if (mounted) widget.onChanged();
+      final saved = widget.logged != null
+          ? await api.updateSet(
+              widget.workoutId,
+              widget.logged!.id,
+              reps: reps,
+              weightKg: weight,
+            )
+          : await api.addSet(
+              widget.workoutId,
+              exerciseId: widget.exerciseId,
+              reps: reps,
+              weightKg: weight,
+              setNumber: widget.setNumber,
+            );
+      await _waitMinSavingDuration(started);
+      if (!mounted) return;
+      widget.onSetSaved(saved);
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -172,10 +185,13 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
     if (ok != true || !mounted) return;
 
     final api = WorkoutApi(context.read<ApiClient>());
+    final started = DateTime.now();
     setState(() => _saving = true);
     try {
       await api.deleteSet(widget.workoutId, set.id);
-      if (mounted) widget.onChanged();
+      await _waitMinSavingDuration(started);
+      if (!mounted) return;
+      widget.onSetDeleted();
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -205,48 +221,112 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
               ),
             ),
             Expanded(
-              child: GainsTextField(
-                controller: _reps,
-                label: 'Reps',
-                keyboardType: TextInputType.number,
+              child: AnimatedOpacity(
+                opacity: _saving ? 0.5 : 1,
+                duration: const Duration(milliseconds: 200),
+                child: IgnorePointer(
+                  ignoring: _saving,
+                  child: GainsTextField(
+                    controller: _reps,
+                    label: 'Reps',
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: GainsTextField(
-                controller: _weight,
-                label: 'kg',
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              ),
-            ),
-            const SizedBox(width: 4),
-            if (_saving)
-              const Padding(
-                padding: EdgeInsets.all(8),
-                child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
-              )
-            else ...[
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: FilledButton.icon(
-                  onPressed: _save,
-                  icon: Icon(isLogged ? Icons.check : Icons.add),
-                  label: Text(isLogged ? 'Update' : 'Log'),
-                  style: FilledButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
+              child: AnimatedOpacity(
+                opacity: _saving ? 0.5 : 1,
+                duration: const Duration(milliseconds: 200),
+                child: IgnorePointer(
+                  ignoring: _saving,
+                  child: GainsTextField(
+                    controller: _weight,
+                    label: 'kg',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   ),
                 ),
               ),
-              if (isLogged)
-                IconButton(
-                  tooltip: 'Remove',
-                  icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.textMuted),
-                  onPressed: _delete,
+            ),
+            const SizedBox(width: 4),
+            _LogSetActionButton(
+              saving: _saving,
+              isLogged: isLogged,
+              onPressed: _save,
+            ),
+            if (isLogged)
+              AnimatedOpacity(
+                opacity: _saving ? 0 : 1,
+                duration: const Duration(milliseconds: 200),
+                child: IgnorePointer(
+                  ignoring: _saving,
+                  child: IconButton(
+                    tooltip: 'Remove',
+                    icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.textMuted),
+                    onPressed: _delete,
+                  ),
                 ),
-            ],
+              ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LogSetActionButton extends StatelessWidget {
+  const _LogSetActionButton({
+    required this.saving,
+    required this.isLogged,
+    required this.onPressed,
+  });
+
+  final bool saving;
+  final bool isLogged;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: SizedBox(
+        height: 40,
+        child: FilledButton(
+          onPressed: saving ? null : onPressed,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(84, 40),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            visualDensity: VisualDensity.compact,
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+            child: saving
+                ? SizedBox(
+                    key: const ValueKey('saving'),
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.25,
+                      color: onPrimary,
+                    ),
+                  )
+                : Row(
+                    key: const ValueKey('idle'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(isLogged ? Icons.check : Icons.add, size: 18),
+                      const SizedBox(width: 6),
+                      Text(isLogged ? 'Update' : 'Log'),
+                    ],
+                  ),
+          ),
         ),
       ),
     );

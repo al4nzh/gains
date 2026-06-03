@@ -1,6 +1,6 @@
 # Exercise catalog & ExerciseDB
 
-Gains ships a **system catalog** (`migrations/000004_seed_exercises.up.sql`) used in routines, workouts, strength benchmarks, and adaptive rules. Demo GIFs come from the free [ExerciseDB OSS API](https://oss.exercisedb.dev) via `POST /exercises/gifs`.
+Gains ships a **system catalog** (`migrations/000004_seed_exercises.up.sql` plus expansions like `000024_expand_seed_exercises.up.sql`) used in routines, workouts, strength benchmarks, and adaptive rules. Demo GIFs come from the free [ExerciseDB OSS API](https://oss.exercisedb.dev) via `POST /exercises/gifs`.
 
 ## How GIF matching works
 

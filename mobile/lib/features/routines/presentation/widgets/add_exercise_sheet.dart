@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
@@ -7,6 +5,7 @@ import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/core/widgets/gains_text_field.dart';
 import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/exercises/models/catalog_exercise.dart';
+import 'package:gains/features/exercises/presentation/widgets/catalog_exercise_picker.dart';
 import 'package:gains/features/routines/data/routine_api.dart';
 import 'package:provider/provider.dart';
 
@@ -23,10 +22,16 @@ class AddExerciseSheet extends StatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-        child: AddExerciseSheet(routineId: routineId),
-      ),
+      builder: (context) {
+        final height = MediaQuery.sizeOf(context).height;
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+          child: SizedBox(
+            height: height * 0.88,
+            child: AddExerciseSheet(routineId: routineId),
+          ),
+        );
+      },
     );
   }
 
@@ -35,16 +40,12 @@ class AddExerciseSheet extends StatefulWidget {
 }
 
 class _AddExerciseSheetState extends State<AddExerciseSheet> {
-  final _search = TextEditingController();
   final _sets = TextEditingController(text: '3');
   final _repMin = TextEditingController(text: '8');
   final _repMax = TextEditingController(text: '12');
   final _rest = TextEditingController(text: '120');
 
-  Timer? _debounce;
-  List<CatalogExercise> _results = [];
   CatalogExercise? _selected;
-  bool _searching = false;
   bool _saving = false;
 
   late final ExerciseApi _exerciseApi;
@@ -60,8 +61,6 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
-    _search.dispose();
     _sets.dispose();
     _repMin.dispose();
     _repMax.dispose();
@@ -69,39 +68,10 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
     super.dispose();
   }
 
-  void _onSearchChanged(String value) {
-    _debounce?.cancel();
-    if (value.trim().length < 2) {
-      setState(() {
-        _results = [];
-        _searching = false;
-      });
-      return;
-    }
-    _debounce = Timer(const Duration(milliseconds: 350), () async {
-      setState(() => _searching = true);
-      try {
-        final items = await _exerciseApi.search(value);
-        if (!mounted) return;
-        setState(() {
-          _results = items;
-          _searching = false;
-        });
-      } on ApiException catch (e) {
-        if (!mounted) return;
-        setState(() => _searching = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      } catch (_) {
-        if (!mounted) return;
-        setState(() => _searching = false);
-      }
-    });
-  }
-
   Future<void> _save() async {
     if (_selected == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pick an exercise from search')),
+        const SnackBar(content: Text('Pick an exercise from the list')),
       );
       return;
     }
@@ -134,100 +104,187 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final listHeight = MediaQuery.sizeOf(context).height * 0.34;
+
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Add exercise',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            GainsTextField(
-              controller: _search,
-              label: 'Search catalog',
-              hint: 'e.g. bench press',
-              textInputAction: TextInputAction.search,
-              onChanged: _onSearchChanged,
-            ),
-            if (_searching) const LinearProgressIndicator(minHeight: 2),
-            if (_selected != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Selected: ${_selected!.name}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.primary),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(2),
               ),
-            ],
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 160),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _results.length,
-                itemBuilder: (context, i) {
-                  final ex = _results[i];
-                  return ListTile(
-                    dense: true,
-                    title: Text(ex.name),
-                    subtitle: Text(
-                      [ex.muscleGroup, ex.equipment].whereType<String>().join(' · '),
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Add exercise',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 20),
+                  if (_selected == null) ...[
+                    CatalogExercisePicker(
+                      exerciseApi: _exerciseApi,
+                      maxListHeight: listHeight,
+                      onSelected: (ex) => setState(() => _selected = ex),
                     ),
-                    onTap: () => setState(() => _selected = ex),
-                  );
-                },
+                  ] else ...[
+                    _SelectedExerciseHeader(
+                      exercise: _selected!,
+                      onChange: () => setState(() => _selected = null),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Prescription',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.textMuted),
+                    ),
+                    const SizedBox(height: 12),
+                    _PrescriptionFields(
+                      sets: _sets,
+                      repMin: _repMin,
+                      repMax: _repMax,
+                      rest: _rest,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: _saving ? null : _save,
+                      child: _saving
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Add to routine'),
+                    ),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: GainsTextField(
-                    controller: _sets,
-                    label: 'Sets',
-                    keyboardType: TextInputType.number,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectedExerciseHeader extends StatelessWidget {
+  const _SelectedExerciseHeader({required this.exercise, required this.onChange});
+
+  final CatalogExercise exercise;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = [exercise.muscleGroup, exercise.equipment].whereType<String>().join(' · ');
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    exercise.name,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: GainsTextField(
-                    controller: _repMin,
-                    label: 'Rep min',
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: GainsTextField(
-                    controller: _repMax,
-                    label: 'Rep max',
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-              ],
+                  if (meta.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      meta,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+                    ),
+                  ],
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            GainsTextField(
-              controller: _rest,
-              label: 'Rest (seconds)',
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Add to routine'),
-            ),
+            TextButton(onPressed: onChange, child: const Text('Change')),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PrescriptionFields extends StatelessWidget {
+  const _PrescriptionFields({
+    required this.sets,
+    required this.repMin,
+    required this.repMax,
+    required this.rest,
+  });
+
+  final TextEditingController sets;
+  final TextEditingController repMin;
+  final TextEditingController repMax;
+  final TextEditingController rest;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 96,
+              child: GainsTextField(
+                controller: sets,
+                label: 'Sets',
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GainsTextField(
+                controller: rest,
+                label: 'Rest (sec)',
+                keyboardType: TextInputType.number,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: GainsTextField(
+                controller: repMin,
+                label: 'Rep min',
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 28, 12, 0),
+              child: Text(
+                '–',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.textMuted),
+              ),
+            ),
+            Expanded(
+              child: GainsTextField(
+                controller: repMax,
+                label: 'Rep max',
+                keyboardType: TextInputType.number,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -26,11 +26,23 @@ class ExerciseApi {
     return map;
   }
 
-  Future<List<CatalogExercise>> list({int limit = 50, int offset = 0}) async {
+  Future<List<CatalogExercise>> list({
+    int limit = 50,
+    int offset = 0,
+    String? muscleGroup,
+  }) async {
     try {
+      final params = <String, dynamic>{
+        'limit': limit,
+        'offset': offset,
+      };
+      final mg = muscleGroup?.trim();
+      if (mg != null && mg.isNotEmpty) {
+        params['muscle_group'] = mg;
+      }
       final response = await _client.dio.get<Map<String, dynamic>>(
         '/exercises',
-        queryParameters: {'limit': limit, 'offset': offset},
+        queryParameters: params,
       );
       final list = response.data!['exercises'] as List<dynamic>? ?? [];
       return list.map((e) => CatalogExercise.fromJson(e as Map<String, dynamic>)).toList();
@@ -55,11 +67,23 @@ class ExerciseApi {
     }
   }
 
-  Future<List<CatalogExercise>> search(String query, {int limit = 30}) async {
+  Future<List<CatalogExercise>> search(
+    String query, {
+    int limit = 30,
+    String? muscleGroup,
+  }) async {
     try {
+      final params = <String, dynamic>{
+        'q': query.trim(),
+        'limit': limit,
+      };
+      final mg = muscleGroup?.trim();
+      if (mg != null && mg.isNotEmpty) {
+        params['muscle_group'] = mg;
+      }
       final response = await _client.dio.get<Map<String, dynamic>>(
         '/exercises/search',
-        queryParameters: {'q': query.trim(), 'limit': limit},
+        queryParameters: params,
       );
       final list = response.data!['exercises'] as List<dynamic>;
       return list.map((e) => CatalogExercise.fromJson(e as Map<String, dynamic>)).toList();

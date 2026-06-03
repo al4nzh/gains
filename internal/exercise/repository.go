@@ -23,14 +23,22 @@ const exerciseColumns = `id, name, muscle_group, equipment, is_custom, created_b
 const catalogWhere = `is_custom = FALSE AND created_by IS NULL`
 
 // ListCatalog returns system exercises ordered by name.
-func (r *Repository) ListCatalog(ctx context.Context, limit, offset int) ([]Exercise, error) {
+// If muscleGroup is non-empty, results are limited to that catalog muscle_group value.
+func (r *Repository) ListCatalog(ctx context.Context, muscleGroup string, limit, offset int) ([]Exercise, error) {
+	muscleGroup = strings.TrimSpace(strings.ToLower(muscleGroup))
+	args := []any{limit, offset}
+	groupClause := ""
+	if muscleGroup != "" {
+		groupClause = " AND lower(muscle_group) = $3"
+		args = append(args, muscleGroup)
+	}
 	q := fmt.Sprintf(`
 		SELECT %s FROM exercises
-		WHERE %s
+		WHERE %s%s
 		ORDER BY name ASC
 		LIMIT $1 OFFSET $2
-	`, exerciseColumns, catalogWhere)
-	rows, err := r.pool.Query(ctx, q, limit, offset)
+	`, exerciseColumns, catalogWhere, groupClause)
+	rows, err := r.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -38,18 +46,26 @@ func (r *Repository) ListCatalog(ctx context.Context, limit, offset int) ([]Exer
 }
 
 // SearchCatalog searches system exercise names (case-insensitive substring).
-func (r *Repository) SearchCatalog(ctx context.Context, query string, limit int) ([]Exercise, error) {
+// If muscleGroup is non-empty, results are limited to that catalog muscle_group value.
+func (r *Repository) SearchCatalog(ctx context.Context, query, muscleGroup string, limit int) ([]Exercise, error) {
+	muscleGroup = strings.TrimSpace(strings.ToLower(muscleGroup))
 	esc := strings.ReplaceAll(query, `\`, `\\`)
 	esc = strings.ReplaceAll(esc, "%", `\%`)
 	esc = strings.ReplaceAll(esc, "_", `\_`)
 	pattern := "%" + esc + "%"
+	args := []any{pattern, limit}
+	groupClause := ""
+	if muscleGroup != "" {
+		groupClause = " AND lower(muscle_group) = $3"
+		args = append(args, muscleGroup)
+	}
 	q := fmt.Sprintf(`
 		SELECT %s FROM exercises
-		WHERE %s AND name ILIKE $1 ESCAPE '\'
+		WHERE %s AND name ILIKE $1 ESCAPE '\'%s
 		ORDER BY name ASC
 		LIMIT $2
-	`, exerciseColumns, catalogWhere)
-	rows, err := r.pool.Query(ctx, q, pattern, limit)
+	`, exerciseColumns, catalogWhere, groupClause)
+	rows, err := r.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +105,7 @@ func (r *Repository) ResolveCatalogByName(ctx context.Context, name string, sear
 	if searchLimit > 25 {
 		searchLimit = 25
 	}
-	candidates, err := r.SearchCatalog(ctx, name, searchLimit)
+	candidates, err := r.SearchCatalog(ctx, name, "", searchLimit)
 	if err != nil {
 		return "", nil, err
 	}

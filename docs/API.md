@@ -254,7 +254,7 @@ Catalog = system exercises (`is_custom = false`, `created_by` null).
 
 ### `GET /exercises`
 
-**Query:** `limit` (default **50**, max **100**), `offset` (default **0**, max **10000**)
+**Query:** `limit` (default **50**, max **100**), `offset` (default **0**, max **10000**); optional `muscle_group` — one of `chest`, `back`, `legs`, `shoulders`, `arms`, `core`, `full_body`
 
 **200:**
 
@@ -278,7 +278,7 @@ Catalog = system exercises (`is_custom = false`, `created_by` null).
 
 ### `GET /exercises/search`
 
-**Query:** `q` **required** (trimmed, max **80** code points); optional `limit` (default/max **50**)
+**Query:** `q` **required** (trimmed, max **80** code points); optional `limit` (default/max **50**); optional `muscle_group` (same values as list)
 
 **200:** `{ "exercises": [...], "q": "bench" }`
 

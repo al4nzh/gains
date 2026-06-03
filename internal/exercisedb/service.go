@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 )
 
 // LookupItem is one catalog exercise to resolve to a GIF URL.
@@ -20,6 +21,8 @@ type Service struct {
 	mu      sync.RWMutex
 	cache   map[string]string // cache key -> gif URL
 	index   indexLoader
+	searchMu    sync.Mutex
+	lastSearch  time.Time
 }
 
 func NewService(client *Client, enabled bool) *Service {
@@ -99,6 +102,29 @@ func (s *Service) resolve(ctx context.Context, name, equipment string) (string, 
 		}
 		cands := idx.candidatesContainingAllTokens(target, tokens(name))
 		if picked := pickBest(name, equipment, cands); picked != nil {
+			return picked.GifURL, nil
+		}
+	}
+
+	// Fallback: search endpoint (best-effort). This helps when the full index is
+	// truncated or the dataset grows beyond our index pagination cap.
+	// Throttle so we don't get rate-limited under bursty lookups.
+	s.searchMu.Lock()
+	defer s.searchMu.Unlock()
+	if since := time.Since(s.lastSearch); since < 350*time.Millisecond {
+		wait := 350*time.Millisecond - since
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(wait):
+		}
+	}
+	s.lastSearch = time.Now()
+
+	query := preferredDBName(name)
+	results, err := s.client.SearchByName(ctx, query, 50)
+	if err == nil && len(results) > 0 {
+		if picked := pickBest(name, equipment, results); picked != nil {
 			return picked.GifURL, nil
 		}
 	}

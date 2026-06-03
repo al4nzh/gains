@@ -27,7 +27,7 @@ func (s *Service) GenerateRoutineDraft(ctx context.Context, userID string, req G
 		return nil, err
 	}
 
-	catalog, err := s.exercises.ListCatalog(ctx, maxCatalogForLLM, 0)
+	catalog, err := s.exercises.ListCatalog(ctx, "", maxCatalogForLLM, 0)
 	if err != nil {
 		return nil, err
 	}

@@ -9,6 +9,7 @@ import 'package:gains/features/home/models/home_summary.dart';
 import 'package:gains/core/widgets/skeleton.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/home/presentation/widgets/home_stats_widgets.dart';
+import 'package:gains/features/home/presentation/widgets/strength_elo_info.dart';
 import 'package:gains/features/home/presentation/widgets/home_week_activity.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
@@ -251,7 +252,30 @@ class _EloCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Strength Elo', style: Theme.of(context).textTheme.labelLarge),
+            Row(
+              children: [
+                Text('Strength Elo', style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'What is Strength Elo?',
+                  onPressed: () => showStrengthEloInfoSheet(context),
+                  icon: const Icon(Icons.info_outline, size: 20),
+                  color: AppColors.textMuted,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              ],
+            ),
+            if (elo == null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Log bench, squat, deadlift, OHP, or barbell row — with bodyweight on your profile — to unlock.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,

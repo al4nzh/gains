@@ -52,6 +52,33 @@ var catalogGifIDs = map[string]string{
 	"t bar row":                   "aaXr7ld",
 	"triceps pushdown":            "3ZflifB",
 	"walking lunge":               "IZVHb27",
+
+	// Expanded catalog (000024)
+	"decline bench press":         "GrO65fd", // barbell decline bench press
+	"machine chest press":         "DOoWcnA", // lever chest press (machine)
+	"dumbbell fly":                "ESOd5Pl", // dumbbell incline fly
+	"straight-arm pulldown":       "x69MAlq", // cable straight arm pulldown
+	"machine pulldown":            "ecpY0rH", // reverse grip machine lat pulldown
+	"shrug":                       "JymLInS", // dumbbell incline shrug
+	"goblet squat":                "yn8yg1r", // dumbbell goblet squat
+	"hack squat":                  "5VCj6iH", // barbell hack squat
+	"smith squat":                 "jFtipLl", // smith squat
+	"good morning":                "XlZ4lAC", // barbell good morning
+	"glute bridge":                "qKBpF7I", // barbell glute bridge
+	"step up":                     "aXtJhlg", // dumbbell step-up
+	"seated leg curl":             "Zg3XY7P", // lever seated leg curl (machine)
+	"seated calf raise":           "bOOdeyc", // lever seated calf raise (machine)
+	"standing calf raise":         "ykUOVze", // lever standing calf raise (machine)
+	"machine shoulder press":      "67n3r98", // lever shoulder press (machine)
+	"cable lateral raise":         "goJ6ezq", // cable lateral raise
+	"upright row":                 "UDlhcO8", // barbell upright row
+	"ez bar curl":                 "6TG6x2w", // ez barbell curl
+	"cable curl":                  "BCGQ6J5", // cable close grip curl
+	"incline db curl":             "ae9UoXQ", // dumbbell incline curl
+	"rope triceps pushdown":       "dU605di", // cable pushdown (with rope attachment)
+	"cable overhead triceps extension": "2IxROQ1", // cable overhead triceps extension (rope attachment)
+	"russian twist":               "XVDdcoj", // russian twist
+	"side plank":                  "5VXmnV5", // bodyweight incline side plank
 }
 
 func staticCatalogGIFURL(normCatalogName string) (string, bool) {

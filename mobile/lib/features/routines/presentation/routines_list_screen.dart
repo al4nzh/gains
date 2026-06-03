@@ -95,21 +95,7 @@ class _RoutinesListScreenState extends State<RoutinesListScreen> with ShellTabAu
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Routines'),
-        actions: [
-          IconButton(
-            tooltip: 'Generate with AI',
-            icon: const Icon(Icons.auto_awesome),
-            onPressed: () => context.push('/routines/generate'),
-          ),
-          IconButton(
-            tooltip: 'Template library',
-            icon: const Icon(Icons.library_books_outlined),
-            onPressed: () => context.push('/routine-templates'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Routines')),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -137,100 +123,209 @@ class _RoutinesListScreenState extends State<RoutinesListScreen> with ShellTabAu
     );
   }
 
+  void _openTemplates() => context.push('/routine-templates');
+
   Widget _buildBody() {
-    if (_loading && _routines.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null && _routines.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          SizedBox(height: MediaQuery.sizeOf(context).height * 0.2),
-          Center(child: Text(_error!, textAlign: TextAlign.center)),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      children: [
+        _TemplateLibraryEntryCard(onTap: _openTemplates),
+        const SizedBox(height: 20),
+        if (_loading && _routines.isEmpty) ...[
+          const SizedBox(height: 32),
+          const Center(child: CircularProgressIndicator()),
+        ] else if (_error != null && _routines.isEmpty) ...[
+          Text(
+            'Your routines',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 12),
+          Text(_error!, textAlign: TextAlign.center),
           const SizedBox(height: 12),
           Center(child: OutlinedButton(onPressed: _load, child: const Text('Retry'))),
-        ],
-      );
-    }
-    if (_routines.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
-        children: [
-          const SizedBox(height: 48),
+        ] else if (_routines.isEmpty) ...[
+          Text(
+            'Your routines',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 12),
           Text(
             'No routines yet',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
-            'Create one or copy from a template.',
+            'Start from a ready-made template above, or create a blank routine.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: _openTemplates,
+            icon: const Icon(Icons.library_books_outlined),
+            label: const Text('Browse template library'),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _createRoutine,
+            icon: const Icon(Icons.add),
+            label: const Text('Create blank routine'),
+          ),
+        ] else ...[
+          Text(
+            'Your routines',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 8),
+          ..._routines.map((r) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _RoutineListCard(
+                  routine: r,
+                  api: api,
+                  exerciseIdToMuscleGroup: _exerciseIdToMuscleGroup,
+                  onTap: () async {
+                    await context.push('/routines/${r.id}');
+                    _load();
+                  },
+                ),
+              )),
         ],
-      );
-    }
+      ],
+    );
+  }
+}
 
-    return ListView.separated(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-      itemCount: _routines.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, i) {
-        final r = _routines[i];
-        return Card(
-          child: InkWell(
-            onTap: () async {
-              await context.push('/routines/${r.id}');
-              _load();
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          r.name,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          [
-                            '${r.exerciseCount} exercises',
-                            if (r.description != null && r.description!.isNotEmpty) r.description!,
-                          ].join(' · '),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  if (_exerciseIdToMuscleGroup.isNotEmpty)
-                    RoutineMusclesMiniDiagram(
-                      routineId: r.id,
-                      routineApi: api,
-                      exerciseIdToMuscleGroup: _exerciseIdToMuscleGroup,
-                      viewSize: 56,
-                    )
-                  else
-                    const SizedBox(width: 118, height: 56),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 22),
-                ],
-              ),
+/// Prominent entry to pre-built routine templates (not the user's saved routines).
+class _TemplateLibraryEntryCard extends StatelessWidget {
+  const _TemplateLibraryEntryCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.primaryMuted.withValues(alpha: 0.35),
+                AppColors.surface,
+              ],
             ),
           ),
-        );
-      },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.library_books_outlined, color: AppColors.primary, size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Template library',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Ready-made plans (push, pull, legs…) — copy one to your routines',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                              height: 1.35,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: AppColors.textMuted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoutineListCard extends StatelessWidget {
+  const _RoutineListCard({
+    required this.routine,
+    required this.api,
+    required this.exerciseIdToMuscleGroup,
+    required this.onTap,
+  });
+
+  final RoutineSummary routine;
+  final RoutineApi api;
+  final Map<String, String> exerciseIdToMuscleGroup;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = routine;
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      r.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        '${r.exerciseCount} exercises',
+                        if (r.description != null && r.description!.isNotEmpty) r.description!,
+                      ].join(' · '),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              if (exerciseIdToMuscleGroup.isNotEmpty)
+                RoutineMusclesMiniDiagram(
+                  routineId: r.id,
+                  routineApi: api,
+                  exerciseIdToMuscleGroup: exerciseIdToMuscleGroup,
+                  viewSize: 56,
+                )
+              else
+                const SizedBox(width: 118, height: 56),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 22),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

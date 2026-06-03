@@ -9,7 +9,7 @@ func (s *Service) coachExerciseLibraryJSON(ctx context.Context) (string, error) 
 	if s.exercises == nil {
 		return "", nil
 	}
-	catalog, err := s.exercises.ListCatalog(ctx, maxCatalogForLLM, 0)
+	catalog, err := s.exercises.ListCatalog(ctx, "", maxCatalogForLLM, 0)
 	if err != nil {
 		return "", err
 	}

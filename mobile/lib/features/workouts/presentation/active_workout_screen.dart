@@ -10,6 +10,7 @@ import 'package:gains/features/routines/models/routine_exercise.dart';
 import 'package:gains/features/routines/presentation/routine_formatters.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
+import 'package:gains/features/workouts/models/workout_set.dart';
 import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/workouts/presentation/widgets/add_exercise_sheet.dart';
 import 'package:gains/features/workouts/presentation/widgets/log_set_slot_row.dart';
@@ -63,9 +64,97 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     }
   }
 
-  void _onSetChanged(String exerciseId, int setNumber) {
+  void _onSetSaved(WorkoutSet set) {
+    _clearDraft(set.exerciseId, set.setNumber);
+    setState(() {
+      final workout = _workout;
+      if (workout != null) {
+        final sets = [
+          for (final s in workout.sets)
+            if (s.exerciseId == set.exerciseId && s.setNumber == set.setNumber) set else s,
+        ];
+        if (!sets.any((s) => s.id == set.id)) {
+          sets.add(set);
+        }
+        _workout = Workout(
+          id: workout.id,
+          routineId: workout.routineId,
+          name: workout.name,
+          startedAt: workout.startedAt,
+          completedAt: workout.completedAt,
+          totalVolumeKg: workout.totalVolumeKg,
+          durationSeconds: workout.durationSeconds,
+          finishStats: workout.finishStats,
+          sets: sets,
+          adaptiveAdjustments: workout.adaptiveAdjustments,
+        );
+      }
+
+      _plan = _plan.map((exercise) {
+        if (exercise.exerciseId != set.exerciseId) return exercise;
+        return WorkoutExercisePlan(
+          exerciseId: exercise.exerciseId,
+          exerciseName: exercise.exerciseName,
+          targetSets: exercise.targetSets,
+          targetRepMin: exercise.targetRepMin,
+          targetRepMax: exercise.targetRepMax,
+          restSeconds: exercise.restSeconds,
+          notes: exercise.notes,
+          lastBestSet: exercise.lastBestSet,
+          slots: exercise.slots.map((slot) {
+            if (slot.setNumber != set.setNumber) return slot;
+            return WorkoutSetSlot(
+              setNumber: slot.setNumber,
+              logged: set,
+              prefill: slot.prefill,
+            );
+          }).toList(),
+        );
+      }).toList();
+    });
+  }
+
+  void _onSetDeleted(String exerciseId, int setNumber, String setId) {
     _clearDraft(exerciseId, setNumber);
-    _load(silent: true);
+    setState(() {
+      final workout = _workout;
+      if (workout != null) {
+        _workout = Workout(
+          id: workout.id,
+          routineId: workout.routineId,
+          name: workout.name,
+          startedAt: workout.startedAt,
+          completedAt: workout.completedAt,
+          totalVolumeKg: workout.totalVolumeKg,
+          durationSeconds: workout.durationSeconds,
+          finishStats: workout.finishStats,
+          sets: workout.sets.where((s) => s.id != setId).toList(),
+          adaptiveAdjustments: workout.adaptiveAdjustments,
+        );
+      }
+
+      _plan = _plan.map((exercise) {
+        if (exercise.exerciseId != exerciseId) return exercise;
+        return WorkoutExercisePlan(
+          exerciseId: exercise.exerciseId,
+          exerciseName: exercise.exerciseName,
+          targetSets: exercise.targetSets,
+          targetRepMin: exercise.targetRepMin,
+          targetRepMax: exercise.targetRepMax,
+          restSeconds: exercise.restSeconds,
+          notes: exercise.notes,
+          lastBestSet: exercise.lastBestSet,
+          slots: exercise.slots.map((slot) {
+            if (slot.setNumber != setNumber) return slot;
+            return WorkoutSetSlot(
+              setNumber: slot.setNumber,
+              logged: null,
+              prefill: slot.prefill,
+            );
+          }).toList(),
+        );
+      }).toList();
+    });
   }
 
   void _addSetSlot(String exerciseId) {
@@ -434,7 +523,13 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                 reps,
                 weight,
               ),
-              onChanged: () => _onSetChanged(exercise.exerciseId, slot.setNumber),
+              onSetSaved: _onSetSaved,
+              onSetDeleted: () {
+                final logged = slot.logged;
+                if (logged != null) {
+                  _onSetDeleted(exercise.exerciseId, slot.setNumber, logged.id);
+                }
+              },
             ),
           Align(
             alignment: Alignment.centerLeft,

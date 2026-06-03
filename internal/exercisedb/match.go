@@ -56,6 +56,12 @@ var catalogAliasNames = map[string]string{
 	"cable crunch":             "cable kneeling crunch",
 	"farmer carry":             "farmers walk",
 	"kettlebell swing":         "kettlebell swing",
+
+	// Expanded catalog (000024) — keep aliases only when we're confident the
+	// target exists in the OSS dataset. Everything else uses search fallback.
+	"decline bench press": "barbell decline bench press",
+	"goblet squat":        "dumbbell goblet squat",
+	"hack squat":          "barbell hack squat",
 }
 
 var equipmentTokens = map[string][]string{

@@ -3,12 +3,14 @@ package exercisedb
 import (
 	"context"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 )
 
 // gainsCatalog is the system seed list (name, equipment) from migrations/000004_seed_exercises.up.sql
+// plus expansions like migrations/000024_expand_seed_exercises.up.sql.
 var gainsCatalog = []struct {
 	Name      string
 	Equipment string
@@ -60,6 +62,33 @@ var gainsCatalog = []struct {
 	{"Cable Crunch", "cable"},
 	{"Farmer Carry", "dumbbell"},
 	{"Kettlebell Swing", "kettlebell"},
+
+	// Expanded catalog (000024)
+	{"Decline Bench Press", "barbell"},
+	{"Machine Chest Press", "machine"},
+	{"Dumbbell Fly", "dumbbell"},
+	{"Straight-Arm Pulldown", "cable"},
+	{"Machine Pulldown", "machine"},
+	{"Shrug", "dumbbell"},
+	{"Hack Squat", "machine"},
+	{"Smith Squat", "machine"},
+	{"Goblet Squat", "dumbbell"},
+	{"Good Morning", "barbell"},
+	{"Glute Bridge", "barbell"},
+	{"Step Up", "dumbbell"},
+	{"Seated Leg Curl", "machine"},
+	{"Seated Calf Raise", "machine"},
+	{"Standing Calf Raise", "machine"},
+	{"Machine Shoulder Press", "machine"},
+	{"Cable Lateral Raise", "cable"},
+	{"Upright Row", "barbell"},
+	{"EZ Bar Curl", "barbell"},
+	{"Cable Curl", "cable"},
+	{"Incline DB Curl", "dumbbell"},
+	{"Rope Triceps Pushdown", "cable"},
+	{"Cable Overhead Triceps Extension", "cable"},
+	{"Russian Twist", "bodyweight"},
+	{"Side Plank", "bodyweight"},
 }
 
 // TestVerifyGainsCatalogAgainstExerciseDB hits the live OSS API. Skip with: go test -short
@@ -100,6 +129,64 @@ func TestVerifyGainsCatalogAgainstExerciseDB(t *testing.T) {
 		t.Errorf("weak matches: %v", weak)
 	}
 	if len(missing) > 0 {
+		// Optional debug: print candidate suggestions from the full ExerciseDB index.
+		if os.Getenv("SUGGEST_EXERCISEDB") == "1" {
+			idx, err := svc.index.get(ctx, svc.client)
+			if err == nil && idx != nil {
+				for _, name := range missing {
+					var equip string
+					for _, ex := range gainsCatalog {
+						if ex.Name == name {
+							equip = ex.Equipment
+							break
+						}
+					}
+					suggestions := suggestCandidates(idx, name, equip, 8)
+					if len(suggestions) > 0 {
+						t.Logf("suggest %q (%s): %v", name, equip, suggestions)
+					} else {
+						t.Logf("suggest %q (%s): (no candidates)", name, equip)
+					}
+				}
+			}
+		}
 		t.Errorf("no gif for %d catalog exercises: %v", len(missing), missing)
 	}
+}
+
+func suggestCandidates(idx *index, catalogName, equipment string, limit int) []string {
+	target := normalizeName(preferredDBName(catalogName))
+	cands := idx.candidatesContainingAllTokens(target, tokens(catalogName))
+	if len(cands) == 0 {
+		return nil
+	}
+	type scored struct {
+		name  string
+		score int
+	}
+	equipSyns := equipmentTokens[strings.ToLower(strings.TrimSpace(equipment))]
+	out := make([]scored, 0, len(cands))
+	for i := range cands {
+		c := &cands[i]
+		if c.GifURL == "" {
+			continue
+		}
+		out = append(out, scored{name: c.Name, score: scoreCandidate(target, tokens(catalogName), equipSyns, c)})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].score > out[j].score })
+	if limit <= 0 {
+		limit = 8
+	}
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	uniq := make([]string, 0, len(out))
+	seen := map[string]bool{}
+	for _, s := range out {
+		if !seen[s.name] {
+			seen[s.name] = true
+			uniq = append(uniq, s.name)
+		}
+	}
+	return uniq
 }
