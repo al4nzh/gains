@@ -31,21 +31,17 @@ workflows:
         GOOGLE_IOS_CLIENT_ID: 104018292313-fea134khon7empvje3uhar9jiu7027tr.apps.googleusercontent.com
 
     scripts:
-      - name: Fetch App Store signing files from Apple
-        script: |
-          keychain initialize
-          app-store-connect fetch-signing-files "com.alanz.gains" \
-            --type IOS_APP_STORE \
-            --create
-          keychain add-certificates
       - name: Set up code signing on Xcode project
         script: xcode-project use-profiles
+      - name: Install CocoaPods
+        script: find . -name "Podfile" -execdir pod install \;
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build IPA
         script: |
           flutter build ipa --release \
             --build-number=$PROJECT_BUILD_NUMBER \
+            --export-options-plist=ios/ExportOptions.plist \
             --dart-define=API_BASE_URL=$API_BASE_URL \
             --dart-define=GOOGLE_SERVER_CLIENT_ID=$GOOGLE_SERVER_CLIENT_ID \
             --dart-define=GOOGLE_IOS_CLIENT_ID=$GOOGLE_IOS_CLIENT_ID
