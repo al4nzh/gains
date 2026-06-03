@@ -16,12 +16,14 @@ class OAuthSignInButtons extends StatefulWidget {
   State<OAuthSignInButtons> createState() => _OAuthSignInButtonsState();
 }
 
-class _OAuthSignInButtonsState extends State<OAuthSignInButtons> {
-  bool _loading = false;
+enum _OAuthProvider { google, apple }
 
-  Future<void> _run(Future<void> Function() action) async {
-    if (_loading) return;
-    setState(() => _loading = true);
+class _OAuthSignInButtonsState extends State<OAuthSignInButtons> {
+  _OAuthProvider? _loading;
+
+  Future<void> _run(_OAuthProvider provider, Future<void> Function() action) async {
+    if (_loading != null) return;
+    setState(() => _loading = provider);
     final session = context.read<AuthSession>();
 
     try {
@@ -35,7 +37,7 @@ class _OAuthSignInButtonsState extends State<OAuthSignInButtons> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _loading = null);
     }
   }
 
@@ -68,8 +70,13 @@ class _OAuthSignInButtonsState extends State<OAuthSignInButtons> {
         const SizedBox(height: 16),
         if (showGoogle)
           OutlinedButton.icon(
-            onPressed: _loading ? null : () => _run(context.read<AuthSession>().signInWithGoogle),
-            icon: _loading
+            onPressed: _loading != null
+                ? null
+                : () => _run(
+                      _OAuthProvider.google,
+                      context.read<AuthSession>().signInWithGoogle,
+                    ),
+            icon: _loading == _OAuthProvider.google
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -81,11 +88,22 @@ class _OAuthSignInButtonsState extends State<OAuthSignInButtons> {
         if (showGoogle && showApple) const SizedBox(height: 12),
         if (showApple)
           OutlinedButton.icon(
-            onPressed: _loading ? null : () => _run(context.read<AuthSession>().signInWithApple),
+            onPressed: _loading != null
+                ? null
+                : () => _run(
+                      _OAuthProvider.apple,
+                      context.read<AuthSession>().signInWithApple,
+                    ),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.textPrimary,
             ),
-            icon: const Icon(Icons.apple, size: 22),
+            icon: _loading == _OAuthProvider.apple
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.apple, size: 22),
             label: const Text('Continue with Apple'),
           ),
       ],

@@ -43,7 +43,17 @@
 				<string>gains</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.104018292313-fea134khon7empvje3uhar9jiu7027tr</string>
+			</array>
+		</dict>
 	</array>
+	<key>GIDClientID</key>
+	<string>104018292313-fea134khon7empvje3uhar9jiu7027tr.apps.googleusercontent.com</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
