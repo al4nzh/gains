@@ -156,16 +156,10 @@ class _RoutinesListScreenState extends State<RoutinesListScreen> with ShellTabAu
           ),
           const SizedBox(height: 8),
           Text(
-            'Start from a ready-made template above, or create a blank routine.',
+            'Tap Template library above, or create a blank routine.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: _openTemplates,
-            icon: const Icon(Icons.library_books_outlined),
-            label: const Text('Browse template library'),
-          ),
-          const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: _createRoutine,
             icon: const Icon(Icons.add),

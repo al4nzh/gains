@@ -57,7 +57,23 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     final next = (reps: reps, weight: weight);
     final prev = _drafts[key];
     if (prev?.reps == next.reps && prev?.weight == next.weight) return;
-    setState(() => _drafts[key] = next);
+
+    final weightChanged = prev?.weight != weight;
+    setState(() {
+      _drafts[key] = next;
+      if (!hasWeight || !weightChanged) return;
+
+      for (final exercise in _plan) {
+        if (exercise.exerciseId != exerciseId) continue;
+        for (final slot in exercise.slots) {
+          if (slot.setNumber == setNumber || slot.logged != null) continue;
+          final otherKey = _slotKey(exerciseId, slot.setNumber);
+          final other = _drafts[otherKey];
+          _drafts[otherKey] = (reps: other?.reps ?? '', weight: weight);
+        }
+        break;
+      }
+    });
   }
 
   void _clearDraft(String exerciseId, int setNumber) {
