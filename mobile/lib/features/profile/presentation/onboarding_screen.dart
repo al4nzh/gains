@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/core/widgets/gains_scaffold.dart';
 import 'package:gains/core/widgets/gains_text_field.dart';
 import 'package:gains/core/widgets/option_chip_group.dart';
@@ -32,6 +33,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String? _goal;
   String? _experienceLevel;
   String? _activityLevel;
+  double? _heightCm;
+  double? _weightKg;
   bool _loading = false;
   bool _initialized = false;
 
@@ -51,6 +54,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _activityLevel = p.activityLevel;
     _initialHeightCm = p.heightCm;
     _initialWeightKg = p.weightKg;
+    _heightCm = p.heightCm;
+    _weightKg = p.weightKg;
     if (p.injuryNotes != null) _injuryNotes.text = p.injuryNotes!;
     _initialized = true;
   }
@@ -72,10 +77,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           );
           return false;
         }
-        final bodyErr = _bodyFieldsKey.currentState?.validate();
-        if (bodyErr != null) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(bodyErr)));
-          return false;
+        final body = _bodyFieldsKey.currentState;
+        if (body == null) {
+          if (_heightCm == null || _weightKg == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Set your height and weight')),
+            );
+            return false;
+          }
+          final bodyErr =
+              BodyUnits.validateHeightCm(_heightCm!) ?? BodyUnits.validateWeightKg(_weightKg!);
+          if (bodyErr != null) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(bodyErr)));
+            return false;
+          }
+        } else {
+          final bodyErr = body.validate();
+          if (bodyErr != null) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(bodyErr)));
+            return false;
+          }
         }
         return true;
       case 2:
@@ -94,6 +115,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _next() {
     if (!_validateStep(_step)) return;
+    if (_step == 1) {
+      final body = _bodyFieldsKey.currentState;
+      if (body != null) {
+        _heightCm = body.heightCm;
+        _weightKg = body.weightKg;
+      }
+    }
     if (_step < _totalSteps - 1) {
       setState(() => _step++);
       return;
@@ -108,7 +136,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _submit() async {
     if (!_validateStep(0) || !_validateStep(1) || !_validateStep(2)) return;
 
-    final body = _bodyFieldsKey.currentState!;
+    final heightCm = _heightCm;
+    final weightKg = _weightKg;
+    if (heightCm == null || weightKg == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Go back and set your height and weight')),
+      );
+      return;
+    }
     final notes = _injuryNotes.text.trim();
 
     setState(() => _loading = true);
@@ -119,8 +154,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ProfileUpdate(
           goal: _goal,
           experience: _experienceLevel,
-          heightCm: body.heightCm,
-          weightKg: body.weightKg,
+          heightCm: heightCm,
+          weightKg: weightKg,
           activityLevel: _activityLevel,
           injuryNotes: notes.isEmpty ? '' : notes,
         ),
