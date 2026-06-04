@@ -41,7 +41,19 @@ func Validate(p *Profile) error {
 	if p.ActivityLevel != nil && !isAllowedActivityLevel(*p.ActivityLevel) {
 		return errors.New("invalid activity_level: use sedentary, light, moderate, active, or very_active")
 	}
+	if p.Gender != nil && !isAllowedGender(*p.Gender) {
+		return errors.New("invalid gender: use female, male, or prefer_not_to_say")
+	}
 	return nil
+}
+
+func isAllowedGender(g string) bool {
+	switch g {
+	case GenderFemale, GenderMale, GenderPreferNotToSay:
+		return true
+	default:
+		return false
+	}
 }
 
 func isAllowedGoal(g string) bool {

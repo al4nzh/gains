@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 
-/// Rank thresholds — keep in sync with [internal/strength/bwelo.go] RankLabel.
+/// Rank thresholds — keep in sync with [internal/strength/bwelo.go] RankLabelForGender.
 abstract final class EloRankTiers {
   static const iron = _Tier('iron', 100, 820);
   static const bronze = _Tier('bronze', 820, 980);
@@ -10,23 +10,35 @@ abstract final class EloRankTiers {
   static const gold = _Tier('gold', 1140, 1320);
   static const platinum = _Tier('platinum', 1320, 3600);
 
-  static const all = [iron, bronze, silver, gold, platinum];
+  static const femaleIron = _Tier('iron', 100, 720);
+  static const femaleBronze = _Tier('bronze', 720, 880);
+  static const femaleSilver = _Tier('silver', 880, 1040);
+  static const femaleGold = _Tier('gold', 1040, 1200);
+  static const femalePlatinum = _Tier('platinum', 1200, 3600);
 
-  static _Tier tierForElo(int elo) {
-    for (final t in all.reversed) {
+  static const all = [iron, bronze, silver, gold, platinum];
+  static const femaleAll = [femaleIron, femaleBronze, femaleSilver, femaleGold, femalePlatinum];
+
+  static List<_Tier> tiersForGender(String? gender) =>
+      gender == 'female' ? femaleAll : all;
+
+  static _Tier tierForElo(int elo, {String? gender}) {
+    final tiers = tiersForGender(gender);
+    for (final t in tiers.reversed) {
       if (elo >= t.min) return t;
     }
-    return iron;
+    return tiers.first;
   }
 
-  static _Tier? nextTierAfter(String? rankKey) {
-    if (rankKey == null) return iron;
-    final idx = all.indexWhere((t) => t.key == rankKey);
-    if (idx < 0 || idx >= all.length - 1) return null;
-    return all[idx + 1];
+  static _Tier? nextTierAfter(String? rankKey, {String? gender}) {
+    final tiers = tiersForGender(gender);
+    if (rankKey == null) return tiers.first;
+    final idx = tiers.indexWhere((t) => t.key == rankKey);
+    if (idx < 0 || idx >= tiers.length - 1) return null;
+    return tiers[idx + 1];
   }
 
-  /// Human-readable Elo band for info UI (max is exclusive in [RankLabel]).
+  /// Human-readable Elo band for info UI (max is exclusive in server RankLabel).
   static String eloRangeLabel(_Tier tier) {
     final name = humanizeSnake(tier.key);
     if (tier.key == 'platinum') {
@@ -66,11 +78,13 @@ class EloRankVisual extends StatelessWidget {
     required this.elo,
     this.rankKey,
     this.percentile,
+    this.profileGender,
   });
 
   final int? elo;
   final String? rankKey;
   final int? percentile;
+  final String? profileGender;
 
   @override
   Widget build(BuildContext context) {
@@ -78,16 +92,16 @@ class EloRankVisual extends StatelessWidget {
       return const _LockedRankLadder();
     }
 
-    final tier = EloRankTiers.tierForElo(elo!);
+    final tier = EloRankTiers.tierForElo(elo!, gender: profileGender);
     final rank = rankKey ?? tier.key;
     final color = eloRankColor(rank);
     final isPlatinum = rank == 'platinum';
 
     if (isPlatinum) {
-      return _PlatinumBadge(color: color, percentile: percentile);
+      return _PlatinumBadge(color: color, percentile: percentile, profileGender: profileGender);
     }
 
-    final next = EloRankTiers.nextTierAfter(rank)!;
+    final next = EloRankTiers.nextTierAfter(rank, gender: profileGender)!;
     final progress = _progressToNextTier(elo!, tier);
     final ptsToNext = (next.min - elo!).clamp(0, 9999);
 
@@ -131,7 +145,7 @@ class EloRankVisual extends StatelessWidget {
           ),
           if (percentile != null) ...[
             const SizedBox(height: 2),
-            _EloPercentileCaption(percentile: percentile!),
+            _EloPercentileCaption(percentile: percentile!, profileGender: profileGender),
           ],
           const SizedBox(height: 2),
           Text(
@@ -161,14 +175,15 @@ class EloRankVisual extends StatelessWidget {
 }
 
 class _EloPercentileCaption extends StatelessWidget {
-  const _EloPercentileCaption({required this.percentile});
+  const _EloPercentileCaption({required this.percentile, this.profileGender});
 
   final int percentile;
+  final String? profileGender;
 
   @override
   Widget build(BuildContext context) {
     return Text(
-      formatStrengthPercentile(percentile),
+      formatStrengthPercentile(percentile, profileGender: profileGender),
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: AppColors.primary,
             fontWeight: FontWeight.w600,
@@ -181,10 +196,11 @@ class _EloPercentileCaption extends StatelessWidget {
 
 /// Max rank — no “next tier” ring; solid badge instead.
 class _PlatinumBadge extends StatelessWidget {
-  const _PlatinumBadge({required this.color, this.percentile});
+  const _PlatinumBadge({required this.color, this.percentile, this.profileGender});
 
   final Color color;
   final int? percentile;
+  final String? profileGender;
 
   @override
   Widget build(BuildContext context) {
@@ -225,7 +241,7 @@ class _PlatinumBadge extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           if (percentile != null)
-            _EloPercentileCaption(percentile: percentile!)
+            _EloPercentileCaption(percentile: percentile!, profileGender: profileGender)
           else
             Text(
               'Top tier · 1,320+',

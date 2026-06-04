@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/home/presentation/widgets/elo_rank_visual.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
+import 'package:provider/provider.dart';
 
 /// Bottom sheet explaining Strength Elo on Home.
 void showStrengthEloInfoSheet(BuildContext context) {
+  final gender = context.read<AuthSession>().profile?.gender;
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: AppColors.surface,
@@ -12,17 +15,19 @@ void showStrengthEloInfoSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (context) => const SafeArea(
+    builder: (context) => SafeArea(
       child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
-        child: _StrengthEloInfoContent(),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: _StrengthEloInfoContent(profileGender: gender),
       ),
     ),
   );
 }
 
 class _StrengthEloInfoContent extends StatelessWidget {
-  const _StrengthEloInfoContent();
+  const _StrengthEloInfoContent({this.profileGender});
+
+  final String? profileGender;
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +89,7 @@ class _StrengthEloInfoContent extends StatelessWidget {
               style: body,
             ),
             const SizedBox(height: 10),
-            const _RankThresholdList(),
+            _RankThresholdList(profileGender: profileGender),
             const SizedBox(height: 8),
             Text(
               'Ratings are capped at 3600. On Home, the ring shows how close you are to the next rank (not used at Platinum — that is the highest tier).',
@@ -97,9 +102,13 @@ class _StrengthEloInfoContent extends StatelessWidget {
           title: 'Percentile',
           children: [
             Text(
-              'When enough lifters on Gains have a Strength Elo, Home shows how you '
-              'compare — e.g. “72nd percentile” or “Top 12%”. It counts only people with '
-              'an unlocked rating, not everyone on the app.',
+              profileGender == 'female' || profileGender == 'male'
+                  ? 'When enough lifters on Gains have a Strength Elo, Home shows how you '
+                      'compare to others with the same gender on your profile — e.g. '
+                      '“72nd percentile among women”. Prefer not to say uses everyone on Gains.'
+                  : 'When enough lifters on Gains have a Strength Elo, Home shows how you '
+                      'compare — e.g. “72nd percentile” or “Top 12%”. Set gender on your profile '
+                      'for peer-group percentiles. Female profiles use adjusted rank thresholds.',
               style: body,
             ),
           ],
@@ -121,14 +130,26 @@ class _StrengthEloInfoContent extends StatelessWidget {
 }
 
 class _RankThresholdList extends StatelessWidget {
-  const _RankThresholdList();
+  const _RankThresholdList({this.profileGender});
+
+  final String? profileGender;
 
   @override
   Widget build(BuildContext context) {
+    final tiers = EloRankTiers.tiersForGender(profileGender);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final tier in EloRankTiers.all)
+        if (profileGender == 'female') ...[
+          Text(
+            'Your tiers (women on Gains)',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: AppColors.textMuted,
+                ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        for (final tier in tiers)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Row(

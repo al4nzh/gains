@@ -88,15 +88,26 @@ func (r *Repository) UpsertStrengthEloTx(ctx context.Context, tx pgx.Tx, userID 
 }
 
 // StrengthEloPercentile returns how many percent of rated lifters have strictly lower Elo (0–100).
+// When peerGender is female or male, only profiles with that gender are counted; otherwise all rated profiles.
 // ok is false when there are not enough rated profiles for a meaningful comparison.
-func (r *Repository) StrengthEloPercentile(ctx context.Context, elo int) (percentile int, ok bool, err error) {
+func (r *Repository) StrengthEloPercentile(ctx context.Context, elo int, peerGender *string) (percentile int, ok bool, err error) {
 	var below, total int
-	err = r.pool.QueryRow(ctx, `
-		SELECT
-			COUNT(*) FILTER (WHERE strength_elo IS NOT NULL AND strength_elo < $1),
-			COUNT(*) FILTER (WHERE strength_elo IS NOT NULL)
-		FROM profiles
-	`, elo).Scan(&below, &total)
+	if peerGender != nil && (*peerGender == GenderFemale || *peerGender == GenderMale) {
+		err = r.pool.QueryRow(ctx, `
+			SELECT
+				COUNT(*) FILTER (WHERE strength_elo IS NOT NULL AND strength_elo < $1),
+				COUNT(*) FILTER (WHERE strength_elo IS NOT NULL)
+			FROM profiles
+			WHERE gender = $2
+		`, elo, *peerGender).Scan(&below, &total)
+	} else {
+		err = r.pool.QueryRow(ctx, `
+			SELECT
+				COUNT(*) FILTER (WHERE strength_elo IS NOT NULL AND strength_elo < $1),
+				COUNT(*) FILTER (WHERE strength_elo IS NOT NULL)
+			FROM profiles
+		`, elo).Scan(&below, &total)
+	}
 	if err != nil {
 		return 0, false, err
 	}

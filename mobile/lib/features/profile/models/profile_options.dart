@@ -13,6 +13,12 @@ abstract final class ProfileOptions {
     ('advanced', 'Advanced'),
   ];
 
+  static const genders = [
+    ('female', 'Female'),
+    ('male', 'Male'),
+    ('prefer_not_to_say', 'Prefer not to say'),
+  ];
+
   static const activityLevels = [
     ('sedentary', 'Sedentary'),
     ('light', 'Light'),

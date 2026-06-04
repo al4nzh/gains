@@ -11,21 +11,34 @@ Future<_ActiveWorkoutAction?> _showActiveWorkoutConflictDialog(BuildContext cont
       content: const Text(
         'Finish or discard it before starting another session, or resume where you left off.',
       ),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, _ActiveWorkoutAction.discard),
-          child: Text(
-            'Discard and start new',
-            style: TextStyle(color: AppColors.error.withValues(alpha: 0.95)),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () => Navigator.pop(ctx, _ActiveWorkoutAction.resume),
+            child: const Text('Resume workout'),
           ),
         ),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, _ActiveWorkoutAction.resume),
-          child: const Text('Resume workout'),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => Navigator.pop(ctx, _ActiveWorkoutAction.discard),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+            ),
+            child: const Text('Discard and start new'),
+          ),
+        ),
+        const SizedBox(height: 4),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
         ),
       ],
     ),
@@ -39,16 +52,22 @@ Future<bool> showDiscardWorkoutConfirmDialog(BuildContext context) async {
     builder: (ctx) => AlertDialog(
       title: const Text('Discard workout?'),
       content: const Text('Are you sure? This workout won\'t be saved.'),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('Cancel'),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep workout'),
+          ),
         ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          child: Text(
-            'Discard',
-            style: TextStyle(color: AppColors.error.withValues(alpha: 0.95)),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Discard'),
           ),
         ),
       ],

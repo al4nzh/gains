@@ -29,6 +29,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _goal;
   String? _experienceLevel;
   String? _activityLevel;
+  String? _gender;
   bool _loading = false;
   bool _initialized = false;
 
@@ -46,6 +47,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _goal = p.goal;
     _experienceLevel = p.experience;
     _activityLevel = p.activityLevel;
+    _gender = p.gender;
     _initialHeightCm = p.heightCm;
     _initialWeightKg = p.weightKg;
     if (p.injuryNotes != null) _injuryNotes.text = p.injuryNotes!;
@@ -61,9 +63,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    if (_goal == null || _experienceLevel == null || _activityLevel == null) {
+    if (_goal == null || _experienceLevel == null || _gender == null || _activityLevel == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select goal, experience, and activity level')),
+        const SnackBar(content: Text('Select goal, experience, gender, and activity level')),
       );
       return;
     }
@@ -82,6 +84,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           heightCm: body.heightCm,
           weightKg: body.weightKg,
           activityLevel: _activityLevel,
+          gender: _gender,
           injuryNotes: notes.isEmpty ? '' : notes,
         ),
       );
@@ -147,6 +150,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               options: ProfileOptions.experience,
               selected: _experienceLevel,
               onSelected: (v) => setState(() => _experienceLevel = v),
+            ),
+            const SizedBox(height: 24),
+            _sectionLabel(context, 'Gender'),
+            const SizedBox(height: 8),
+            OptionChipGroup(
+              options: ProfileOptions.genders,
+              selected: _gender,
+              onSelected: (v) => setState(() => _gender = v),
             ),
             const SizedBox(height: 24),
             _sectionLabel(context, 'Activity outside the gym'),

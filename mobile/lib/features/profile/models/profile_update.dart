@@ -6,6 +6,7 @@ class ProfileUpdate {
     this.heightCm,
     this.weightKg,
     this.activityLevel,
+    this.gender,
     this.injuryNotes,
   });
 
@@ -14,6 +15,7 @@ class ProfileUpdate {
   final double? heightCm;
   final double? weightKg;
   final String? activityLevel;
+  final String? gender;
   final String? injuryNotes;
 
   Map<String, dynamic> toJson() {
@@ -23,6 +25,7 @@ class ProfileUpdate {
     if (heightCm != null) map['height_cm'] = heightCm;
     if (weightKg != null) map['weight_kg'] = weightKg;
     if (activityLevel != null) map['activity_level'] = activityLevel;
+    if (gender != null) map['gender'] = gender;
     if (injuryNotes != null) map['injury_notes'] = injuryNotes;
     return map;
   }

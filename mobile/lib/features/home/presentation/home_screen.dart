@@ -231,7 +231,10 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
           ),
           const SizedBox(height: 12),
         ],
-        _EloCard(data: data),
+        _EloCard(
+          data: data,
+          profileGender: context.watch<AuthSession>().profile?.gender,
+        ),
         const SizedBox(height: 12),
         _SharpnessCard(sharpness: data.sharpness),
         const SizedBox(height: 12),
@@ -250,9 +253,10 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
 }
 
 class _EloCard extends StatelessWidget {
-  const _EloCard({required this.data});
+  const _EloCard({required this.data, this.profileGender});
 
   final HomeSummary data;
+  final String? profileGender;
 
   @override
   Widget build(BuildContext context) {
@@ -315,7 +319,12 @@ class _EloCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            EloRankVisual(elo: elo, rankKey: rank, percentile: percentile),
+            EloRankVisual(
+              elo: elo,
+              rankKey: rank,
+              percentile: percentile,
+              profileGender: profileGender,
+            ),
           ],
         ),
       ),

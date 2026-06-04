@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"gainsai/internal/auth"
+	"gainsai/internal/strength"
 )
 
 type Handler struct {
@@ -29,6 +30,7 @@ type apiProfile struct {
 	Age                   *int       `json:"age,omitempty"`
 	HeightCm              *float64   `json:"height_cm,omitempty"`
 	WeightKg              *float64   `json:"weight_kg,omitempty"`
+	Gender                *string    `json:"gender,omitempty"`
 	Goal                  *string    `json:"goal,omitempty"`
 	Experience            *string    `json:"experience,omitempty"`
 	PreferredSplit        *string    `json:"preferred_split,omitempty"`
@@ -46,6 +48,7 @@ type putBody struct {
 	Age            *int     `json:"age"`
 	HeightCm       *float64 `json:"height_cm"`
 	WeightKg       *float64 `json:"weight_kg"`
+	Gender         *string  `json:"gender"`
 	Goal           *string  `json:"goal"`
 	Experience     *string  `json:"experience"`
 	PreferredSplit *string  `json:"preferred_split"`
@@ -92,6 +95,16 @@ func (h *Handler) put(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
+	if merged.StrengthElo != nil {
+		newRank := strength.RankLabelForGender(*merged.StrengthElo, merged.Gender)
+		change30d := 0
+		if merged.StrengthEloChange30d != nil {
+			change30d = *merged.StrengthEloChange30d
+		}
+		if merged.StrengthEloRank == nil || *merged.StrengthEloRank != newRank {
+			_ = h.repo.UpsertStrengthElo(c.Request.Context(), userID, *merged.StrengthElo, newRank, change30d)
+		}
+	}
 	saved, err := h.repo.GetByUserID(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
@@ -110,6 +123,14 @@ func mergePut(cur *Profile, b *putBody) *Profile {
 	}
 	if b.WeightKg != nil {
 		out.WeightKg = b.WeightKg
+	}
+	if b.Gender != nil {
+		if strings.TrimSpace(*b.Gender) == "" {
+			out.Gender = nil
+		} else {
+			g := strings.TrimSpace(*b.Gender)
+			out.Gender = &g
+		}
 	}
 	if b.Goal != nil {
 		if strings.TrimSpace(*b.Goal) == "" {
@@ -160,6 +181,7 @@ func toAPI(p *Profile) apiProfile {
 		Age:                   p.Age,
 		HeightCm:              p.HeightCm,
 		WeightKg:              p.WeightKg,
+		Gender:                p.Gender,
 		Goal:                  p.FitnessGoal,
 		Experience:            p.TrainingExperience,
 		PreferredSplit:        p.PreferredSplit,

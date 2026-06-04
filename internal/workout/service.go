@@ -353,7 +353,7 @@ func (s *Service) FinishWorkout(ctx context.Context, userID, workoutID string, i
 
 		S, _ := strength.AverageBenchmarkNorms(normsToUse)
 		after := strength.EloAfterFromBenchmarkNorms(normsToUse)
-		rank := strength.RankLabel(after)
+		rank := strength.RankLabelForGender(after, prof.Gender)
 
 		meta, _ := json.Marshal(map[string]any{
 			"volume":            stats.TotalVolumeKg,

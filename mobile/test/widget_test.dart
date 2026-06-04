@@ -25,11 +25,23 @@ void main() {
           userId: '1',
           goal: 'strength',
           experience: 'beginner',
+          gender: 'female',
           activityLevel: 'moderate',
           heightCm: 180,
           weightKg: 80,
         ).needsOnboarding,
         isFalse,
+      );
+      expect(
+        const Profile(
+          userId: '1',
+          goal: 'strength',
+          experience: 'beginner',
+          activityLevel: 'moderate',
+          heightCm: 180,
+          weightKg: 80,
+        ).needsOnboarding,
+        isTrue,
       );
     });
   });

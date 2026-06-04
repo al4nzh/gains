@@ -23,6 +23,12 @@ const (
 	ActivityVeryActive = "very_active"
 )
 
+const (
+	GenderFemale         = "female"
+	GenderMale           = "male"
+	GenderPreferNotToSay = "prefer_not_to_say"
+)
+
 type Profile struct {
 	UserID                string     `json:"user_id"             db:"user_id"`
 	Age                   *int       `json:"age,omitempty"       db:"age"`

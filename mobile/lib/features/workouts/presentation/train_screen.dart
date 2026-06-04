@@ -9,6 +9,7 @@ import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
 import 'package:gains/core/widgets/skeleton.dart';
 import 'package:gains/features/workouts/presentation/train_workout_helpers.dart';
+import 'package:gains/features/workouts/presentation/widgets/active_workout_dialogs.dart';
 import 'package:gains/features/workouts/presentation/widgets/train_history_tile.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
@@ -97,6 +98,23 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
     }
   }
 
+  Future<void> _discardActive(Workout active) async {
+    final confirmed = await showDiscardWorkoutConfirmDialog(context);
+    if (!confirmed || !mounted) return;
+    try {
+      await api.discardWorkout(active.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Workout discarded')),
+      );
+      await _load(silent: true);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -168,7 +186,17 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               subtitle: const Text('In progress · tap to continue'),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Discard workout',
+                    icon: Icon(Icons.delete_outline, color: AppColors.error.withValues(alpha: 0.9)),
+                    onPressed: () => _discardActive(active),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
               onTap: () => _openWorkout(active),
             ),
           ),

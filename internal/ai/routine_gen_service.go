@@ -37,6 +37,7 @@ func (s *Service) GenerateRoutineDraft(ctx context.Context, userID string, req G
 		"experience":        prof.TrainingExperience,
 		"preferred_split":   prof.PreferredSplit,
 		"injury_notes":      prof.InjuryNotes,
+		"gender":            prof.Gender,
 		"age":               prof.Age,
 		"weight_kg":         prof.WeightKg,
 		"height_cm":         prof.HeightCm,

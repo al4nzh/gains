@@ -104,6 +104,7 @@ type WorkoutContextExerciseCompare struct {
 type WorkoutContextProfileBasics struct {
 	Goal        *string  `json:"goal,omitempty"`
 	Experience  *string  `json:"experience,omitempty"`
+	Gender      *string  `json:"gender,omitempty"`
 	InjuryNotes *string  `json:"injury_notes,omitempty"`
 	StrengthElo *int     `json:"strength_elo,omitempty"`
 	WeightKg    *float64 `json:"weight_kg,omitempty"`
@@ -147,6 +148,7 @@ func workoutContextProfileBasicsFrom(p *profile.Profile) *WorkoutContextProfileB
 	return &WorkoutContextProfileBasics{
 		Goal:        p.FitnessGoal,
 		Experience:  p.TrainingExperience,
+		Gender:      p.Gender,
 		InjuryNotes: p.InjuryNotes,
 		StrengthElo: p.StrengthElo,
 		WeightKg:    p.WeightKg,
@@ -168,6 +170,7 @@ type CoachProfileView struct {
 	Age                   *int       `json:"age,omitempty"`
 	HeightCm              *float64   `json:"height_cm,omitempty"`
 	WeightKg              *float64   `json:"weight_kg,omitempty"`
+	Gender                *string    `json:"gender,omitempty"`
 	Goal                  *string    `json:"goal,omitempty"`
 	Experience            *string    `json:"experience,omitempty"`
 	PreferredSplit        *string    `json:"preferred_split,omitempty"`
@@ -266,6 +269,7 @@ func coachProfileViewFrom(p *profile.Profile) *CoachProfileView {
 		Age:                   p.Age,
 		HeightCm:              p.HeightCm,
 		WeightKg:              p.WeightKg,
+		Gender:                p.Gender,
 		Goal:                  p.FitnessGoal,
 		Experience:            p.TrainingExperience,
 		PreferredSplit:        p.PreferredSplit,

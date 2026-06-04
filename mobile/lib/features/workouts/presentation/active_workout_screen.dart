@@ -12,6 +12,7 @@ import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
 import 'package:gains/features/workouts/models/workout_set.dart';
 import 'package:gains/features/exercises/data/exercise_api.dart';
+import 'package:gains/features/workouts/presentation/widgets/active_workout_dialogs.dart';
 import 'package:gains/features/workouts/presentation/widgets/add_exercise_sheet.dart';
 import 'package:gains/features/workouts/presentation/widgets/log_set_slot_row.dart';
 import 'package:gains/features/workouts/presentation/widgets/workout_exercise_header.dart';
@@ -39,6 +40,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   String? _error;
   bool _loading = true;
   bool _finishing = false;
+  bool _discarding = false;
 
   WorkoutApi get api => _api ??= WorkoutApi(context.read<ApiClient>());
 
@@ -372,6 +374,30 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     _load(silent: true);
   }
 
+  Future<void> _discard() async {
+    if (_finishing || _discarding) return;
+
+    final confirmed = await showDiscardWorkoutConfirmDialog(context);
+    if (!confirmed || !mounted) return;
+
+    setState(() => _discarding = true);
+    try {
+      await api.discardWorkout(widget.workoutId);
+      if (!mounted) return;
+      context.read<ShellTabRefresh>().bump(ShellTab.train);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Workout discarded')),
+      );
+      context.pop();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _discarding = false);
+    }
+  }
+
   Future<void> _finish() async {
     final w = _workout;
     if (w == null || _finishing) return;
@@ -427,9 +453,24 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
       appBar: AppBar(
         title: Text(w?.displayName ?? 'Workout'),
         actions: [
-          if (w != null && w.isInProgress)
+          if (w != null && w.isInProgress) ...[
+            PopupMenuButton<String>(
+              enabled: !_finishing && !_discarding,
+              onSelected: (value) {
+                if (value == 'discard') _discard();
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem<String>(
+                  value: 'discard',
+                  child: Text(
+                    'Discard workout',
+                    style: TextStyle(color: AppColors.error.withValues(alpha: 0.95)),
+                  ),
+                ),
+              ],
+            ),
             TextButton(
-              onPressed: _finishing ? null : _finish,
+              onPressed: _finishing || _discarding ? null : _finish,
               child: _finishing
                   ? const SizedBox(
                       width: 18,
@@ -438,6 +479,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                     )
                   : const Text('Finish'),
             ),
+          ],
         ],
       ),
       floatingActionButton: w != null && w.isInProgress

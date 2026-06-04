@@ -113,9 +113,9 @@ Mobile or web app completes Google Sign-In, then sends the Google **`id_token`**
 }
 ```
 
-**200:** `{ "user": { ... }, "tokens": { ... } }` — `auth_provider` is **`google`**
+**200:** `{ "user": { ... }, "tokens": { ... } }` — `auth_provider` stays **`email`** when linking to an existing email/password account (Google identity is stored in `user_oauth_identities`; password login still works)
 
-**401:** invalid / expired token · **409:** email already used with email/password · **503:** OAuth not configured
+**401:** invalid / expired token · **409:** email already used with a **different** OAuth provider (e.g. Apple vs Google) · **503:** OAuth not configured
 
 ---
 
@@ -134,7 +134,7 @@ Mobile or web app completes Google Sign-In, then sends the Google **`id_token`**
 
 `email` is optional in the token after the first sign-in; on **first** Apple authorization the client should pass `email` from Apple’s credential if the JWT omits it.
 
-**200:** same shape as Google login · **400:** first sign-in without email · **409:** email conflict · **503:** not configured
+**200:** same shape as Google login (links to existing **email** accounts by verified email, same as Google) · **400:** first sign-in without email · **409:** email conflict with a different OAuth provider · **503:** not configured
 
 ---
 
@@ -223,7 +223,8 @@ Permanently deletes the authenticated user and all related data (workouts, profi
 | `experience` | maps to DB `training_experience`: `beginner`, `intermediate`, `advanced` |
 | `preferred_split`, `injury_notes` | |
 | `activity_level` | optional lifestyle activity outside the gym: `sedentary`, `light`, `moderate`, `active`, `very_active` (used for analytics calorie targets when set; unset defaults to `moderate` in scoring) |
-| `strength_elo`, `strength_elo_rank`, `strength_elo_change_30d`, `last_strength_elo_update` | read-only in API (not written by `PUT`) |
+| `gender` | optional: `female`, `male`, `prefer_not_to_say` — used for **peer-group** Strength Elo percentile (female/male) and **lower rank thresholds** for `female` (Iron/Bronze/…); Elo score itself is unchanged |
+| `strength_elo`, `strength_elo_rank`, `strength_elo_change_30d`, `last_strength_elo_update` | read-only in API (not written by `PUT`; rank recomputed on `PUT` when gender changes) |
 | `updated_at` | present when a profile row exists |
 
 ---
@@ -243,7 +244,8 @@ Partial update: only JSON keys you send are merged.
   "experience": "intermediate",
   "preferred_split": "Upper / Lower",
   "injury_notes": "...",
-  "activity_level": "moderate"
+  "activity_level": "moderate",
+  "gender": "female"
 }
 ```
 

@@ -33,6 +33,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String? _goal;
   String? _experienceLevel;
   String? _activityLevel;
+  String? _gender;
   double? _heightCm;
   double? _weightKg;
   bool _loading = false;
@@ -52,6 +53,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _goal = p.goal;
     _experienceLevel = p.experience;
     _activityLevel = p.activityLevel;
+    _gender = p.gender;
     _initialHeightCm = p.heightCm;
     _initialWeightKg = p.weightKg;
     _heightCm = p.heightCm;
@@ -71,6 +73,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         }
         return true;
       case 1:
+        if (_gender == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Select your gender')),
+          );
+          return false;
+        }
         if (_activityLevel == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Select your activity level')),
@@ -157,6 +165,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           heightCm: heightCm,
           weightKg: weightKg,
           activityLevel: _activityLevel,
+          gender: _gender,
           injuryNotes: notes.isEmpty ? '' : notes,
         ),
       );
@@ -262,6 +271,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           subtitle: 'Height and weight power calorie and protein targets on your dashboard.',
         ),
         const SizedBox(height: 28),
+        _sectionLabel(context, 'Gender'),
+        const SizedBox(height: 8),
+        Text(
+          'Used for fair strength ranks and percentile vs your peer group.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
+        ),
+        const SizedBox(height: 8),
+        OptionChipGroup(
+          options: ProfileOptions.genders,
+          selected: _gender,
+          onSelected: (v) => setState(() => _gender = v),
+        ),
+        const SizedBox(height: 24),
         _sectionLabel(context, 'Activity outside the gym'),
         const SizedBox(height: 8),
         OptionChipGroup(

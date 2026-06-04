@@ -53,11 +53,17 @@ func (s *Service) loginOAuth(ctx context.Context, provider, providerUserID, emai
 
 	existing, err := s.users.GetByEmail(ctx, email)
 	if err == nil {
-		if existing.AuthProvider != provider {
+		if existing.AuthProvider != provider && existing.AuthProvider != user.AuthProviderEmail {
 			return nil, nil, ErrOAuthEmailConflict
 		}
 		if err := s.users.InsertOAuthIdentity(ctx, existing.ID, provider, providerUserID, email); err != nil {
 			return nil, nil, err
+		}
+		if !existing.EmailVerified() {
+			_ = s.users.MarkEmailVerified(ctx, existing.ID)
+			if u, err := s.users.GetByID(ctx, existing.ID); err == nil {
+				existing = u
+			}
 		}
 		pair, _, err := s.issueTokens(ctx, existing, info)
 		return existing, pair, err

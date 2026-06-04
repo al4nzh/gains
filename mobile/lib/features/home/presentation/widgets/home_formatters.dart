@@ -1,10 +1,22 @@
 /// [percentile] = share of rated lifters you're stronger than (0–100, from API).
-String formatStrengthPercentile(int percentile) {
+/// When [profileGender] is female or male, copy reflects peer-group comparison.
+String formatStrengthPercentile(int percentile, {String? profileGender}) {
+  final peer = _peerGroupLabel(profileGender);
   if (percentile >= 90) {
     final top = (100 - percentile).clamp(1, 50);
-    return top == 1 ? 'Top 1%' : 'Top $top%';
+    final base = top == 1 ? 'Top 1%' : 'Top $top%';
+    return peer == null ? base : '$base $peer';
   }
-  return '$percentile${_ordinalSuffix(percentile)} percentile';
+  final base = '$percentile${_ordinalSuffix(percentile)} percentile';
+  return peer == null ? base : '$base $peer';
+}
+
+String? _peerGroupLabel(String? gender) {
+  return switch (gender) {
+    'female' => 'among women',
+    'male' => 'among men',
+    _ => null,
+  };
 }
 
 String _ordinalSuffix(int n) {

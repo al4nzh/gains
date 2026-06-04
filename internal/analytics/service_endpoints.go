@@ -46,7 +46,7 @@ func (s *Service) Home(ctx context.Context, userID string) (*HomeResponse, error
 
 	var eloPercentile *int
 	if prof.StrengthElo != nil {
-		if p, ok, err := s.profile.StrengthEloPercentile(ctx, *prof.StrengthElo); err != nil {
+		if p, ok, err := s.profile.StrengthEloPercentile(ctx, *prof.StrengthElo, prof.Gender); err != nil {
 			return nil, err
 		} else if ok {
 			eloPercentile = &p

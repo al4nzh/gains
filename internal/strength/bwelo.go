@@ -2,6 +2,9 @@ package strength
 
 import "strings"
 
+// GenderFemale matches profile.GenderFemale (kept here to avoid import cycles).
+const GenderFemale = "female"
+
 // Estimate1RMBrzycki returns estimated 1RM (kg). Invalid input returns 0.
 func Estimate1RMBrzycki(weightKg float64, reps int) float64 {
 	if weightKg <= 0 || reps <= 0 {
@@ -192,16 +195,47 @@ func ClampElo(elo int) int {
 	return elo
 }
 
-// RankLabel is a coarse tier for UI.
+// Default rank thresholds (men and unspecified gender).
+const (
+	rankIronMax     = 820
+	rankBronzeMax   = 980
+	rankSilverMax   = 1140
+	rankGoldMax     = 1320
+	rankFemaleIron   = 720
+	rankFemaleBronze = 880
+	rankFemaleSilver = 1040
+	rankFemaleGold   = 1200
+)
+
+// RankLabel is a coarse tier for UI (default thresholds).
 func RankLabel(elo int) string {
+	return RankLabelForGender(elo, nil)
+}
+
+// RankLabelForGender applies lower tier thresholds for female profiles.
+func RankLabelForGender(elo int, gender *string) string {
+	if gender != nil && strings.TrimSpace(*gender) == GenderFemale {
+		switch {
+		case elo < rankFemaleIron:
+			return "iron"
+		case elo < rankFemaleBronze:
+			return "bronze"
+		case elo < rankFemaleSilver:
+			return "silver"
+		case elo < rankFemaleGold:
+			return "gold"
+		default:
+			return "platinum"
+		}
+	}
 	switch {
-	case elo < 820:
+	case elo < rankIronMax:
 		return "iron"
-	case elo < 980:
+	case elo < rankBronzeMax:
 		return "bronze"
-	case elo < 1140:
+	case elo < rankSilverMax:
 		return "silver"
-	case elo < 1320:
+	case elo < rankGoldMax:
 		return "gold"
 	default:
 		return "platinum"
