@@ -20,6 +20,14 @@ class LegalConfig {
     defaultValue: 'stixietv@gmail.com',
   );
 
+  static const String supportUrl = String.fromEnvironment(
+    'SUPPORT_URL',
+    defaultValue: 'https://gainsai.net/support',
+  );
+
+  static bool get hasSupportEmail => supportEmail.trim().isNotEmpty;
+  static bool get hasSupportUrl => supportUrl.trim().isNotEmpty;
+
   static bool get hasPrivacyUrl => privacyPolicyUrl.trim().isNotEmpty;
   static bool get hasTermsUrl => termsUrl.trim().isNotEmpty;
 }

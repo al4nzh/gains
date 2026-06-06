@@ -14,9 +14,15 @@ import (
 
 const openAIBaseURL = "https://api.openai.com/v1/chat/completions"
 
+const (
+	analyzeWorkoutMaxTokens = 280
+	coachChatMaxTokens      = 700 // short message + proposed_actions JSON
+)
+
 type openAIChatRequest struct {
 	Model          string              `json:"model"`
 	Messages       []openAIChatMessage `json:"messages"`
+	MaxTokens      *int                `json:"max_tokens,omitempty"`
 	ResponseFormat *openAIRespFormat   `json:"response_format,omitempty"`
 }
 
@@ -42,24 +48,24 @@ type openAIChatResponse struct {
 }
 
 // ChatCompletion calls OpenAI chat completions with a single system + user message.
-func ChatCompletion(ctx context.Context, apiKey, model, systemPrompt, userContent string) (string, error) {
+func ChatCompletion(ctx context.Context, apiKey, model, systemPrompt, userContent string, maxTokens int) (string, error) {
 	return ChatCompletionMessages(ctx, apiKey, model, []openAIChatMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: userContent},
-	})
+	}, maxTokens)
 }
 
 // ChatCompletionMessages calls OpenAI with a full message list (roles: system, user, assistant).
-func ChatCompletionMessages(ctx context.Context, apiKey, model string, messages []openAIChatMessage) (string, error) {
-	return chatCompletionMessages(ctx, apiKey, model, messages, false)
+func ChatCompletionMessages(ctx context.Context, apiKey, model string, messages []openAIChatMessage, maxTokens int) (string, error) {
+	return chatCompletionMessages(ctx, apiKey, model, messages, false, maxTokens)
 }
 
 // ChatCompletionMessagesJSON requests a JSON object response (e.g. coach chat with proposed_actions).
-func ChatCompletionMessagesJSON(ctx context.Context, apiKey, model string, messages []openAIChatMessage) (string, error) {
-	return chatCompletionMessages(ctx, apiKey, model, messages, true)
+func ChatCompletionMessagesJSON(ctx context.Context, apiKey, model string, messages []openAIChatMessage, maxTokens int) (string, error) {
+	return chatCompletionMessages(ctx, apiKey, model, messages, true, maxTokens)
 }
 
-func chatCompletionMessages(ctx context.Context, apiKey, model string, messages []openAIChatMessage, jsonObject bool) (string, error) {
+func chatCompletionMessages(ctx context.Context, apiKey, model string, messages []openAIChatMessage, jsonObject bool, maxTokens int) (string, error) {
 	if strings.TrimSpace(apiKey) == "" {
 		return "", ErrOpenAINotConfigured
 	}
@@ -72,6 +78,9 @@ func chatCompletionMessages(ctx context.Context, apiKey, model string, messages 
 	body := openAIChatRequest{
 		Model:    model,
 		Messages: messages,
+	}
+	if maxTokens > 0 {
+		body.MaxTokens = &maxTokens
 	}
 	if jsonObject {
 		body.ResponseFormat = &openAIRespFormat{Type: "json_object"}

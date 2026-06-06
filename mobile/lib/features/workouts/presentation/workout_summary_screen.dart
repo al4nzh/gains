@@ -389,22 +389,54 @@ class _WorkoutInsightCard extends StatelessWidget {
                   child: Text(
                     insight.title,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              insight.message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.45),
-            ),
+            const SizedBox(height: 10),
+            ..._insightMessageParagraphs(context, insight.message),
           ],
         ),
       ),
     );
   }
+}
+
+List<Widget> _insightMessageParagraphs(BuildContext context, String message) {
+  final paragraphs = message.split(RegExp(r'\n\s*\n')).where((p) => p.trim().isNotEmpty).toList();
+  if (paragraphs.isEmpty) {
+    return [
+      Text(
+        message.trim(),
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              height: 1.5,
+              color: AppColors.textSecondary,
+            ),
+      ),
+    ];
+  }
+  return [
+    for (var i = 0; i < paragraphs.length; i++) ...[
+      if (i > 0) const SizedBox(height: 8),
+      Text(
+        paragraphs[i].trim(),
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              height: 1.5,
+              color: AppColors.textSecondary,
+              fontWeight: _insightParagraphStartsWithLabel(paragraphs[i])
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+            ),
+      ),
+    ],
+  ];
+}
+
+bool _insightParagraphStartsWithLabel(String paragraph) {
+  final trimmed = paragraph.trim().toLowerCase();
+  return trimmed.startsWith('likely reason:') || trimmed.startsWith('next move:');
 }
 
 class _StatCard extends StatelessWidget {

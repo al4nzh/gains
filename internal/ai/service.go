@@ -94,7 +94,7 @@ func (s *Service) AnalyzeWorkout(ctx context.Context, userID, workoutID string) 
 		model = "gpt-4o-mini"
 	}
 
-	raw, err := ChatCompletion(ctx, s.cfg.OpenAIAPIKey, model, analyzeWorkoutSystemPrompt, string(payload))
+	raw, err := ChatCompletion(ctx, s.cfg.OpenAIAPIKey, model, analyzeWorkoutSystemPrompt, string(payload), analyzeWorkoutMaxTokens)
 	if err != nil {
 		return nil, err
 	}

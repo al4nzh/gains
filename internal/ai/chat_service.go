@@ -76,7 +76,7 @@ func (s *Service) Chat(ctx context.Context, userID string, req ChatRequest) (*Ch
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
-	reply, err := ChatCompletionMessagesJSON(ctx, s.cfg.OpenAIAPIKey, model, openAIMsgs)
+	reply, err := ChatCompletionMessagesJSON(ctx, s.cfg.OpenAIAPIKey, model, openAIMsgs, coachChatMaxTokens)
 	if err != nil {
 		return nil, err
 	}

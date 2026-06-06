@@ -60,7 +60,7 @@ func (s *Service) GenerateRoutineDraft(ctx context.Context, userID string, req G
 	raw, err := ChatCompletionMessagesJSON(ctx, s.cfg.OpenAIAPIKey, model, []openAIChatMessage{
 		{Role: "system", Content: routineGenSystemPrompt},
 		{Role: "user", Content: string(userJSON)},
-	})
+	}, 0)
 	if err != nil {
 		return nil, err
 	}

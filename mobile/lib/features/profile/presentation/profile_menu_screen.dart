@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/core/utils/support_contact.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:provider/provider.dart';
 
@@ -51,6 +52,15 @@ class ProfileMenuScreen extends StatelessWidget {
             leading: const Icon(Icons.camera_alt_outlined),
             title: const Text('Physique scans'),
             onTap: () => context.push('/physique-scans'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text('Help & support'),
+            subtitle: const Text(
+              'Questions, bugs, or account help',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            onTap: () => openSupportContact(context),
           ),
           const Divider(height: 1),
           ListTile(
