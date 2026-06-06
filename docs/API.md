@@ -113,9 +113,9 @@ Mobile or web app completes Google Sign-In, then sends the Google **`id_token`**
 }
 ```
 
-**200:** `{ "user": { ... }, "tokens": { ... } }` — `auth_provider` stays **`email`** when linking to an existing email/password account (Google identity is stored in `user_oauth_identities`; password login still works)
+**200:** `{ "user": { ... }, "tokens": { ... } }`
 
-**401:** invalid / expired token · **409:** email already used with a **different** OAuth provider (e.g. Apple vs Google) · **503:** OAuth not configured
+**401:** invalid / expired token · **409:** email already registered with **email/password** (sign in with email first) or a **different** OAuth provider · **503:** OAuth not configured
 
 ---
 
@@ -127,14 +127,13 @@ Mobile or web app completes Google Sign-In, then sends the Google **`id_token`**
 
 ```json
 {
-  "id_token": "<apple-identity-token>",
-  "email": "user@example.com"
+  "id_token": "<apple-identity-token>"
 }
 ```
 
-`email` is optional in the token after the first sign-in; on **first** Apple authorization the client should pass `email` from Apple’s credential if the JWT omits it.
+Email must come from the **verified Apple identity token** (`email` + `email_verified` claims). The server does **not** accept client-supplied email. Returning users are matched by Apple `sub` via stored OAuth identity (email may be absent in later tokens). New accounts require email in the token on first sign-in.
 
-**200:** same shape as Google login (links to existing **email** accounts by verified email, same as Google) · **400:** first sign-in without email · **409:** email conflict with a different OAuth provider · **503:** not configured
+**200:** same shape as Google login · **400:** first sign-in without verified email in token · **409:** email conflict (email/password account or different OAuth provider) · **503:** not configured
 
 ---
 

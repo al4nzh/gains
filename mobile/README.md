@@ -95,6 +95,15 @@ flutter run \
 
 Welcome screen → **Continue with Google** (Android + iOS). **Continue with Apple** (iOS only). Email signup on both.
 
+## Android release signing (Play Store)
+
+1. Create an upload keystore (once):  
+   `keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload`
+2. Copy `android/key.properties.example` → `android/key.properties` and set paths/passwords (gitignored).
+3. Release builds use the release keystore when `key.properties` exists (or Codemagic `CM_KEYSTORE_*` env vars).
+
+Without `key.properties`, `flutter run --release` still uses debug keys locally — **not** valid for Play Store upload.
+
 ## Run
 
 ```bash

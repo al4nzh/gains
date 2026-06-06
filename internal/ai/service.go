@@ -8,6 +8,7 @@ import (
 
 	"gainsai/internal/config"
 	"gainsai/internal/exercise"
+	"gainsai/internal/aiquota"
 	"gainsai/internal/profile"
 	"gainsai/internal/routine"
 	"gainsai/internal/workout"
@@ -27,6 +28,7 @@ type Service struct {
 	exercises      *exercise.Repository
 	cfg            *config.Config
 	analytics      AnalyticsContextProvider
+	quota          *aiquota.Service
 }
 
 func NewService(
@@ -41,6 +43,7 @@ func NewService(
 	exercises *exercise.Repository,
 	cfg *config.Config,
 	analytics AnalyticsContextProvider,
+	quota *aiquota.Service,
 ) *Service {
 	return &Service{
 		repo:          repo,
@@ -56,6 +59,7 @@ func NewService(
 		exercises:     exercises,
 		cfg:           cfg,
 		analytics:     analytics,
+		quota:         quota,
 	}
 }
 
@@ -82,6 +86,10 @@ func (s *Service) AnalyzeWorkout(ctx context.Context, userID, workoutID string) 
 
 	if strings.TrimSpace(s.cfg.OpenAIAPIKey) == "" {
 		return nil, ErrOpenAINotConfigured
+	}
+
+	if err := s.quota.Consume(ctx, userID, aiquota.KindWorkoutAnalysis); err != nil {
+		return nil, err
 	}
 
 	payload, err := s.analytics.WorkoutContextJSON(ctx, userID, workoutID)

@@ -14,6 +14,7 @@ import (
 
 	"gainsai/internal/adaptiverecommendations"
 	"gainsai/internal/ai"
+	"gainsai/internal/aiquota"
 	"gainsai/internal/analytics"
 	"gainsai/internal/auth"
 	"gainsai/internal/config"
@@ -99,31 +100,39 @@ func main() {
 	})
 
 	requireAuth := auth.RequireAuth(jwtIssuer)
+	requireVerifiedEmail := auth.RequireVerifiedEmail(userRepo)
+	requireAppAccess := func(c *gin.Context) {
+		requireAuth(c)
+		if c.IsAborted() {
+			return
+		}
+		requireVerifiedEmail(c)
+	}
 	authHandler.RegisterRoutes(r, authLimiter.Middleware(), requireAuth)
 
 	profileRepo := profile.NewRepository(pool)
 	profileHandler := profile.NewHandler(profileRepo)
-	profileHandler.RegisterRoutes(r, requireAuth, profileLimiter.Middleware())
+	profileHandler.RegisterRoutes(r, requireAppAccess, profileLimiter.Middleware())
 
 	exerciseRepo := exercise.NewRepository(pool)
 	exerciseDBClient := exercisedb.NewClient(cfg.ExerciseDBBaseURL)
 	exerciseDBGifSvc := exercisedb.NewService(exerciseDBClient, cfg.ExerciseDBEnabled)
 	exerciseHandler := exercise.NewHandler(exerciseRepo, exerciseDBGifSvc)
-	exerciseHandler.RegisterRoutes(r, requireAuth, exerciseLimiter.Middleware())
+	exerciseHandler.RegisterRoutes(r, requireAppAccess, exerciseLimiter.Middleware())
 
 	routineRepo := routine.NewRepository(pool)
 	routineSvc := routine.NewService(routineRepo)
 	routineHandler := routine.NewHandler(routineSvc)
-	routineHandler.RegisterRoutes(r, requireAuth, routineLimiter.Middleware())
+	routineHandler.RegisterRoutes(r, requireAppAccess, routineLimiter.Middleware())
 
 	workoutRepo := workout.NewRepository(pool)
 	workoutSvc := workout.NewService(pool, workoutRepo, profileRepo, exerciseRepo)
 	workoutHandler := workout.NewHandler(workoutSvc)
-	workoutHandler.RegisterRoutes(r, requireAuth, workoutLimiter.Middleware())
+	workoutHandler.RegisterRoutes(r, requireAppAccess, workoutLimiter.Middleware())
 
 	recoveryRepo := recovery.NewRepository(pool)
 	recoveryHandler := recovery.NewHandler(recoveryRepo)
-	recoveryHandler.RegisterRoutes(r, requireAuth, recoveryLimiter.Middleware())
+	recoveryHandler.RegisterRoutes(r, requireAppAccess, recoveryLimiter.Middleware())
 
 	aiRepo := ai.NewRepository(pool)
 	analyticsRepo := analytics.NewRepository(pool)
@@ -133,24 +142,26 @@ func main() {
 		adaptiveRepo, routineRepo, workoutRepo, recoveryRepo, profileRepo, analyticsRepo, exerciseRepo,
 	)
 	adaptiveHandler := adaptiverecommendations.NewHandler(adaptiveSvc)
-	adaptiveHandler.RegisterRoutes(r, requireAuth, workoutLimiter.Middleware())
+	adaptiveHandler.RegisterRoutes(r, requireAppAccess, workoutLimiter.Middleware())
 	analyticsSvc := analytics.NewService(analyticsRepo, recoveryRepo, profileRepo, routineRepo, workoutRepo, aiRepo)
 	analyticsHandler := analytics.NewHandler(analyticsSvc)
-	analyticsHandler.RegisterRoutes(r, requireAuth, analyticsLimiter.Middleware())
+	analyticsHandler.RegisterRoutes(r, requireAppAccess, analyticsLimiter.Middleware())
 
 	aiLimiter := middleware.NewIPRateLimiter(cfg.AIRateLimitRPS, cfg.AIRateLimitBurst)
+	aiQuotaRepo := aiquota.NewRepository(pool)
+	aiQuotaSvc := aiquota.NewService(aiQuotaRepo, userRepo, cfg)
 	chatRepo := ai.NewChatRepository(pool)
 	actionRepo := ai.NewActionRepository(pool)
 	routineDraftRepo := ai.NewRoutineDraftRepository(pool)
-	aiSvc := ai.NewService(aiRepo, chatRepo, actionRepo, routineDraftRepo, workoutRepo, profileRepo, routineRepo, routineSvc, exerciseRepo, cfg, analyticsSvc)
+	aiSvc := ai.NewService(aiRepo, chatRepo, actionRepo, routineDraftRepo, workoutRepo, profileRepo, routineRepo, routineSvc, exerciseRepo, cfg, analyticsSvc, aiQuotaSvc)
 	aiHandler := ai.NewHandler(aiSvc)
-	aiHandler.RegisterRoutes(r, requireAuth, aiLimiter.Middleware())
+	aiHandler.RegisterRoutes(r, requireAppAccess, aiLimiter.Middleware())
 
 	physiqueLimiter := middleware.NewIPRateLimiter(cfg.PhysiqueRateLimitRPS, cfg.PhysiqueRateLimitBurst)
 	physiqueRepo := physique.NewRepository(pool)
-	physiqueSvc := physique.NewService(physiqueRepo, cfg)
+	physiqueSvc := physique.NewService(physiqueRepo, cfg, aiQuotaSvc)
 	physiqueHandler := physique.NewHandler(physiqueSvc)
-	physiqueHandler.RegisterRoutes(r, requireAuth, physiqueLimiter.Middleware())
+	physiqueHandler.RegisterRoutes(r, requireAppAccess, physiqueLimiter.Middleware())
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

@@ -124,7 +124,11 @@ func (s *Service) ResetPassword(ctx context.Context, rawToken, newPassword strin
 	if err != nil {
 		return err
 	}
-	return s.users.UpdatePassword(ctx, userID, pwHash)
+	if err := s.users.UpdatePassword(ctx, userID, pwHash); err != nil {
+		return err
+	}
+	_ = s.refresh.RevokeAllForUser(ctx, userID)
+	return nil
 }
 
 func generateEmailCode() (raw, hashed string, err error) {

@@ -4,17 +4,19 @@ import (
 	"context"
 
 	"gainsai/internal/config"
+	"gainsai/internal/aiquota"
 )
 
 const maxImagesPerScan = 3
 
 type Service struct {
-	repo *Repository
-	cfg  *config.Config
+	repo  *Repository
+	cfg   *config.Config
+	quota *aiquota.Service
 }
 
-func NewService(repo *Repository, cfg *config.Config) *Service {
-	return &Service{repo: repo, cfg: cfg}
+func NewService(repo *Repository, cfg *config.Config, quota *aiquota.Service) *Service {
+	return &Service{repo: repo, cfg: cfg, quota: quota}
 }
 
 func (s *Service) CreateScan(ctx context.Context, userID string, files []uploadedFile) (*Scan, error) {
@@ -23,6 +25,9 @@ func (s *Service) CreateScan(ctx context.Context, userID string, files []uploade
 	}
 	if len(files) > maxImagesPerScan {
 		return nil, ErrTooManyImages
+	}
+	if err := s.quota.Consume(ctx, userID, aiquota.KindPhysiqueScan); err != nil {
+		return nil, err
 	}
 
 	scanID, err := s.repo.NewScanID(ctx)

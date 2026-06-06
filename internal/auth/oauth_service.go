@@ -18,25 +18,19 @@ func (s *Service) LoginGoogle(ctx context.Context, idToken string, info ClientIn
 	return s.loginOAuth(ctx, user.AuthProviderGoogle, claims.Subject, claims.Email, info)
 }
 
-func (s *Service) LoginApple(ctx context.Context, idToken, fallbackEmail string, info ClientInfo) (*user.User, *TokenPair, error) {
+func (s *Service) LoginApple(ctx context.Context, idToken string, info ClientInfo) (*user.User, *TokenPair, error) {
 	if s.appleClientID == "" {
 		return nil, nil, ErrOAuthNotConfigured
 	}
-	claims, err := verifyAppleIDToken(idToken, s.appleClientID, fallbackEmail)
+	claims, err := verifyAppleIDToken(idToken, s.appleClientID)
 	if err != nil {
 		return nil, nil, err
-	}
-	if claims.Email == "" {
-		return nil, nil, ErrOAuthEmailRequired
 	}
 	return s.loginOAuth(ctx, user.AuthProviderApple, claims.Subject, claims.Email, info)
 }
 
 func (s *Service) loginOAuth(ctx context.Context, provider, providerUserID, email string, info ClientInfo) (*user.User, *TokenPair, error) {
 	email = normalizeEmail(email)
-	if email == "" {
-		return nil, nil, ErrInvalidOAuthToken
-	}
 
 	ident, err := s.users.GetOAuthIdentity(ctx, provider, providerUserID)
 	if err == nil {
@@ -51,10 +45,14 @@ func (s *Service) loginOAuth(ctx context.Context, provider, providerUserID, emai
 		return nil, nil, err
 	}
 
+	if email == "" {
+		return nil, nil, ErrOAuthEmailRequired
+	}
+
 	existing, err := s.users.GetByEmail(ctx, email)
 	if err == nil {
-		if existing.AuthProvider != provider && existing.AuthProvider != user.AuthProviderEmail {
-			return nil, nil, ErrOAuthEmailConflict
+		if err := oauthLinkConflict(existing.AuthProvider, provider); err != nil {
+			return nil, nil, err
 		}
 		if err := s.users.InsertOAuthIdentity(ctx, existing.ID, provider, providerUserID, email); err != nil {
 			return nil, nil, err

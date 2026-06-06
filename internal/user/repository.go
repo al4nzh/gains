@@ -22,7 +22,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-const userColumns = `id, email, password_hash, auth_provider, email_verified_at, created_at, updated_at`
+const userColumns = `id, email, password_hash, auth_provider, is_premium, email_verified_at, created_at, updated_at`
 
 func (r *Repository) MarkEmailVerified(ctx context.Context, userID string) error {
 	_, err := r.pool.Exec(ctx, `
@@ -70,6 +70,19 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*User, error) {
 
 func (r *Repository) DeleteByID(ctx context.Context, id string) error {
 	tag, err := r.pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *Repository) SetPremium(ctx context.Context, userID string, premium bool) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE users SET is_premium = $2, updated_at = NOW()
+		WHERE id = $1`, userID, premium)
 	if err != nil {
 		return err
 	}

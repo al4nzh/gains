@@ -1,7 +1,23 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+fun releaseKeystoreConfigured(): Boolean {
+    if (keystorePropertiesFile.exists()) {
+        return true
+    }
+    return !System.getenv("CM_KEYSTORE_PATH").isNullOrBlank()
 }
 
 android {
@@ -14,11 +30,24 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+                ?: System.getenv("CM_KEY_ALIAS")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+                ?: System.getenv("CM_KEY_PASSWORD")
+            storePassword = keystoreProperties.getProperty("storePassword")
+                ?: System.getenv("CM_KEYSTORE_PASSWORD")
+            val storePath = keystoreProperties.getProperty("storeFile")
+                ?: System.getenv("CM_KEYSTORE_PATH")
+            if (!storePath.isNullOrBlank()) {
+                storeFile = file(storePath)
+            }
+        }
+    }
+
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.alanz.gains"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -27,9 +56,12 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (releaseKeystoreConfigured()) {
+                signingConfigs.getByName("release")
+            } else {
+                // Local `flutter run --release` only — Play Store builds require key.properties or Codemagic signing env.
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

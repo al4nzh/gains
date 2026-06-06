@@ -3,6 +3,7 @@ class User {
     required this.id,
     required this.email,
     required this.authProvider,
+    this.isPremium = false,
     this.emailVerifiedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -11,6 +12,7 @@ class User {
   final String id;
   final String email;
   final String authProvider;
+  final bool isPremium;
   final DateTime? emailVerifiedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -24,6 +26,7 @@ class User {
       id: json['id'] as String,
       email: json['email'] as String,
       authProvider: json['auth_provider'] as String? ?? 'email',
+      isPremium: json['is_premium'] as bool? ?? false,
       emailVerifiedAt: verifiedRaw == null ? null : DateTime.parse(verifiedRaw as String),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),

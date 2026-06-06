@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"gainsai/internal/aiquota"
 	"gainsai/internal/auth"
 	"gainsai/internal/routine"
 )
@@ -48,6 +49,9 @@ func (h *Handler) generateRoutines(c *gin.Context) {
 	}
 	out, err := h.svc.GenerateRoutineDraft(c.Request.Context(), userID, req)
 	if err != nil {
+		if aiquota.WriteError(c, err) {
+			return
+		}
 		switch {
 		case errors.Is(err, ErrRoutineGenMessageRequired):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -91,6 +95,9 @@ func (h *Handler) analyzeWorkout(c *gin.Context) {
 	workoutID := c.Param("workoutId")
 	out, err := h.svc.AnalyzeWorkout(c.Request.Context(), userID, workoutID)
 	if err != nil {
+		if aiquota.WriteError(c, err) {
+			return
+		}
 		switch {
 		case errors.Is(err, ErrNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "workout not found"})
@@ -139,6 +146,9 @@ func (h *Handler) chat(c *gin.Context) {
 	}
 	out, err := h.svc.Chat(c.Request.Context(), userID, req)
 	if err != nil {
+		if aiquota.WriteError(c, err) {
+			return
+		}
 		switch {
 		case errors.Is(err, ErrChatMessageRequired):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

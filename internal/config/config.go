@@ -48,6 +48,12 @@ type Config struct {
 	AIRateLimitRPS   float64
 	AIRateLimitBurst int
 
+	AIRequirePremium          bool
+	AIDailyCoachMessages      int
+	AIDailyWorkoutAnalyses    int
+	AIDailyRoutineGenerations int
+	AIDailyPhysiqueScans      int
+
 	PhysiqueScanModel      string
 	PhysiqueRateLimitRPS   float64
 	PhysiqueRateLimitBurst int
@@ -120,6 +126,12 @@ func Load() (*Config, error) {
 	cfg.OpenAIModel = getEnv("OPENAI_MODEL", "gpt-4o-mini")
 	cfg.AIRateLimitRPS = parseFloat("AI_RATE_LIMIT_RPS", 3)
 	cfg.AIRateLimitBurst = parseInt("AI_RATE_LIMIT_BURST", 6)
+
+	cfg.AIRequirePremium = parseBool("AI_REQUIRE_PREMIUM", false)
+	cfg.AIDailyCoachMessages = parseInt("AI_DAILY_COACH_MESSAGES", 200)
+	cfg.AIDailyWorkoutAnalyses = parseInt("AI_DAILY_WORKOUT_ANALYSES", 50)
+	cfg.AIDailyRoutineGenerations = parseInt("AI_DAILY_ROUTINE_GENS", 30)
+	cfg.AIDailyPhysiqueScans = parseInt("AI_DAILY_PHYSIQUE_SCANS", 20)
 
 	cfg.PhysiqueScanModel = getEnv("PHYSIQUE_SCAN_MODEL", "gpt-5.4-mini")
 	cfg.PhysiqueRateLimitRPS = parseFloat("PHYSIQUE_RATE_LIMIT_RPS", 2)

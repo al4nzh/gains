@@ -1,0 +1,7 @@
+# Copy to key.properties (gitignored) for local release builds.
+# Play Store / Codemagic: upload keystore and set CM_KEYSTORE_* env vars instead.
+
+storePassword=your-keystore-password
+keyPassword=your-key-password
+keyAlias=upload
+storeFile=../upload-keystore.jks

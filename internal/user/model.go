@@ -13,6 +13,7 @@ type User struct {
 	Email           string     `json:"email"        db:"email"`
 	PasswordHash    *string    `json:"-"            db:"password_hash"`
 	AuthProvider    string     `json:"auth_provider" db:"auth_provider"`
+	IsPremium       bool       `json:"is_premium"   db:"is_premium"`
 	EmailVerifiedAt *time.Time `json:"email_verified_at,omitempty" db:"email_verified_at"`
 	CreatedAt       time.Time  `json:"created_at"   db:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"   db:"updated_at"`

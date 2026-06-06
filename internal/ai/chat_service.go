@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"gainsai/internal/actionengine"
+	"gainsai/internal/aiquota"
 )
 
 // Chat sends a user message and returns the assistant reply. New conversations receive coach context once.
@@ -19,6 +20,9 @@ func (s *Service) Chat(ctx context.Context, userID string, req ChatRequest) (*Ch
 	}
 	if s.chat == nil {
 		return nil, errors.New("chat repository not configured")
+	}
+	if err := s.quota.Consume(ctx, userID, aiquota.KindCoachMessage); err != nil {
+		return nil, err
 	}
 
 	var convID string

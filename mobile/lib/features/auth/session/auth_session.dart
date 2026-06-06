@@ -82,7 +82,7 @@ class AuthSession extends ChangeNotifier {
 
   Future<void> signInWithApple() async {
     final creds = await _oauthService.signInWithApple();
-    final response = await _authApi.loginApple(creds.idToken, email: creds.email);
+    final response = await _authApi.loginApple(creds.idToken);
     await _applyAuthResponse(response);
   }
 
@@ -115,6 +115,7 @@ class AuthSession extends ChangeNotifier {
 
   Future<void> verifyEmail(String token) async {
     user = await _authApi.verifyEmail(token);
+    profile = await _loadProfileIfAllowed();
     notifyListeners();
   }
 
@@ -153,13 +154,24 @@ class AuthSession extends ChangeNotifier {
   Future<void> _applyAuthResponse(AuthResponse response) async {
     await _tokenStorage.saveTokens(response.tokens, userId: response.user.id);
     user = response.user;
-    profile = await _profileApi.getProfile();
+    profile = await _loadProfileIfAllowed();
     status = AuthStatus.authenticated;
     notifyListeners();
   }
 
   Future<void> _loadSession() async {
     user = await _authApi.me();
-    profile = await _profileApi.getProfile();
+    profile = await _loadProfileIfAllowed();
+  }
+
+  Future<Profile?> _loadProfileIfAllowed() async {
+    final u = user;
+    if (u == null) return null;
+    if (u.usesEmailAuth && !u.isEmailVerified) return null;
+    try {
+      return await _profileApi.getProfile();
+    } on ApiException {
+      return null;
+    }
   }
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"gainsai/internal/actionengine"
+	"gainsai/internal/aiquota"
 	"gainsai/internal/exercise"
 	"gainsai/internal/routine"
 )
@@ -20,6 +21,9 @@ func (s *Service) GenerateRoutineDraft(ctx context.Context, userID string, req G
 	}
 	if s.routineDrafts == nil || s.exercises == nil || s.profiles == nil {
 		return nil, ErrOpenAINotConfigured
+	}
+	if err := s.quota.Consume(ctx, userID, aiquota.KindRoutineGeneration); err != nil {
+		return nil, err
 	}
 
 	prof, err := s.profiles.GetByUserID(ctx, userID)

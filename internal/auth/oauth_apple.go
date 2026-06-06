@@ -23,7 +23,7 @@ type appleClaims struct {
 	Email   string
 }
 
-func verifyAppleIDToken(rawToken, clientID string, fallbackEmail string) (*appleClaims, error) {
+func verifyAppleIDToken(rawToken, clientID string) (*appleClaims, error) {
 	rawToken = strings.TrimSpace(rawToken)
 	clientID = strings.TrimSpace(clientID)
 	if rawToken == "" || clientID == "" {
@@ -56,11 +56,22 @@ func verifyAppleIDToken(rawToken, clientID string, fallbackEmail string) (*apple
 
 	email, _ := mapClaims["email"].(string)
 	email = strings.ToLower(strings.TrimSpace(email))
-	if email == "" {
-		email = strings.ToLower(strings.TrimSpace(fallbackEmail))
+	if email != "" && !appleEmailVerified(mapClaims) {
+		return nil, ErrInvalidOAuthToken
 	}
 
 	return &appleClaims{Subject: sub, Email: email}, nil
+}
+
+func appleEmailVerified(claims jwt.MapClaims) bool {
+	switch v := claims["email_verified"].(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(strings.TrimSpace(v), "true")
+	default:
+		return false
+	}
 }
 
 func getAppleJWKS() (keyfunc.Keyfunc, error) {

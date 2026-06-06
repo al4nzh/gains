@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS ai_daily_usage;
+ALTER TABLE users DROP COLUMN IF EXISTS is_premium;

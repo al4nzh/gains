@@ -52,8 +52,7 @@ type refreshReq struct {
 }
 
 type oauthTokenReq struct {
-	IDToken string  `json:"id_token" binding:"required"`
-	Email   *string `json:"email,omitempty"` // Apple: client may send email on first authorization only
+	IDToken string `json:"id_token" binding:"required"`
 }
 
 type authResponse struct {
@@ -122,11 +121,7 @@ func (h *Handler) appleLogin(c *gin.Context) {
 		return
 	}
 	info := ClientInfo{UserAgent: c.GetHeader("User-Agent"), IPAddress: c.ClientIP()}
-	email := ""
-	if req.Email != nil {
-		email = *req.Email
-	}
-	u, tokens, err := h.service.LoginApple(c.Request.Context(), req.IDToken, email, info)
+	u, tokens, err := h.service.LoginApple(c.Request.Context(), req.IDToken, info)
 	writeOAuthResponse(c, u, tokens, err)
 }
 
@@ -142,7 +137,7 @@ func writeOAuthResponse(c *gin.Context, u *user.User, tokens *TokenPair, err err
 		case errors.Is(err, user.ErrEmailExists):
 			c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
 		case errors.Is(err, ErrOAuthEmailRequired):
-			c.JSON(http.StatusBadRequest, gin.H{"error": "email required on first Apple sign-in — pass email from the Apple authorization response"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Apple did not include a verified email. Grant email access on first sign-in, or use an existing Apple-linked account."})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		}

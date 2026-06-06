@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"gainsai/internal/auth"
+	"gainsai/internal/aiquota"
 )
 
 type Handler struct {
@@ -41,6 +42,9 @@ func (h *Handler) create(c *gin.Context) {
 
 	scan, err := h.svc.CreateScan(c.Request.Context(), userID, files)
 	if err != nil {
+		if aiquota.WriteError(c, err) {
+			return
+		}
 		writeCreateError(c, err)
 		return
 	}

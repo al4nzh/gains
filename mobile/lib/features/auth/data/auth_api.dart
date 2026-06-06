@@ -47,15 +47,11 @@ class AuthApi {
     }
   }
 
-  Future<AuthResponse> loginApple(String idToken, {String? email}) async {
+  Future<AuthResponse> loginApple(String idToken) async {
     try {
-      final data = <String, dynamic>{'id_token': idToken};
-      if (email != null && email.trim().isNotEmpty) {
-        data['email'] = email.trim();
-      }
       final response = await _client.dio.post<Map<String, dynamic>>(
         '/auth/apple',
-        data: data,
+        data: {'id_token': idToken},
         options: Options(extra: const {'skipAuth': true}),
       );
       return AuthResponse.fromJson(response.data!);
