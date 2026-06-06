@@ -39,6 +39,9 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Per-machine local API URL for flutter run
+dart_defines.local.json
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile

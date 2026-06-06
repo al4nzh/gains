@@ -1,20 +1,31 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:gains/core/api/api_exception.dart';
-import 'package:gains/core/config/api_config.dart';
 import 'package:gains/features/auth/data/token_storage.dart';
 import 'package:gains/features/auth/models/token_pair.dart';
 
-class ApiClient {
-  ApiClient(this._tokenStorage) {
+class ApiClient extends ChangeNotifier {
+  ApiClient(this._tokenStorage, {required String baseUrl}) {
     _dio = Dio(
       BaseOptions(
-        baseUrl: ApiConfig.baseUrl,
+        baseUrl: baseUrl,
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 30),
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
       ),
     );
     _dio.interceptors.add(_AuthInterceptor(this));
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestHeader: false,
+          responseHeader: false,
+          requestBody: true,
+          responseBody: true,
+          logPrint: (o) => debugPrint('[Gains HTTP] $o'),
+        ),
+      );
+    }
   }
 
   final TokenStorage _tokenStorage;
@@ -22,6 +33,13 @@ class ApiClient {
   Future<bool>? _refreshFuture;
 
   Dio get dio => _dio;
+
+  String get baseUrl => _dio.options.baseUrl;
+
+  void setBaseUrl(String url) {
+    _dio.options.baseUrl = url.trim();
+    notifyListeners();
+  }
 
   Future<String?> readAccessToken() => _tokenStorage.readAccessToken();
 

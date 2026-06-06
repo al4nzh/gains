@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gains/core/theme/app_theme.dart';
+import 'package:gains/core/widgets/dev_api_banner.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:gains/router/app_router.dart';
@@ -42,6 +43,10 @@ class _GainsAppState extends State<GainsApp> {
         theme: AppTheme.dark,
         themeMode: ThemeMode.dark,
         routerConfig: _appRouter.router,
+        builder: (context, child) {
+          if (child == null) return const SizedBox.shrink();
+          return DevApiDebugShell(child: child);
+        },
       ),
     );
   }

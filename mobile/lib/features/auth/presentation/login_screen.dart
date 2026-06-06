@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_exception.dart';
+import 'package:gains/core/widgets/dev_api_panel.dart';
 import 'package:gains/core/widgets/gains_scaffold.dart';
 import 'package:gains/core/widgets/gains_text_field.dart';
 import 'package:gains/core/widgets/legal_footer.dart';
@@ -63,7 +64,8 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: Column(
+        child: SingleChildScrollView(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 8),
@@ -118,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Text(_obscure ? 'Show password' : 'Hide password'),
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _loading ? null : _submit,
               child: _loading
@@ -134,6 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: _loading ? null : () => context.push('/register'),
               child: const Text('Need an account? Sign up'),
             ),
+            const DevApiPanel(),
             const SizedBox(height: 12),
             const LegalFooter(
               prefix: 'By logging in, you agree to our ',
@@ -141,6 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 8),
           ],
+        ),
         ),
       ),
     );

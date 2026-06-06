@@ -12,8 +12,11 @@ import 'package:gains/features/workouts/models/finish_stats.dart';
 import 'package:gains/features/workouts/models/workout.dart';
 import 'package:gains/features/workouts/presentation/muscle_group_mapping.dart';
 import 'package:gains/features/workouts/presentation/widgets/session_muscles_diagram.dart';
+import 'package:gains/features/workouts/presentation/widgets/workout_share_card.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
 
 class WorkoutSummaryScreen extends StatefulWidget {
   const WorkoutSummaryScreen({
@@ -30,6 +33,7 @@ class WorkoutSummaryScreen extends StatefulWidget {
 }
 
 class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
+  final _shareCapture = ScreenshotController();
   Workout? _workout;
   FinishStats? _stats;
   Map<String, String> _exerciseMuscleGroup = {};
@@ -37,6 +41,7 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
   String? _error;
   bool _loading = true;
   bool _analyzing = false;
+  bool _sharing = false;
   bool _insightExpanded = false;
 
   @override
@@ -132,6 +137,69 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
     }
   }
 
+  String? _shareAiOneLiner() {
+    final title = _insight?.title.trim();
+    if (title != null && title.isNotEmpty) return title;
+    return null;
+  }
+
+  Future<void> _shareSummary(FinishStats stats) async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    try {
+      final title = _workout?.displayName ?? 'Workout';
+      final sessionWorkout = _workout;
+      final sessionBests = sessionWorkout != null
+          ? shareBestSetsFromLoggedSets(sessionWorkout.sets)
+          : <ShareSessionBestSet>[];
+      final rawGroups = <String>{};
+      for (final e in stats.e1rmByExercise) {
+        final g = _exerciseMuscleGroup[e.exerciseId];
+        if (g != null && g.isNotEmpty) rawGroups.add(g);
+      }
+      if (sessionWorkout != null) {
+        for (final s in sessionWorkout.sets) {
+          final g = _exerciseMuscleGroup[s.exerciseId];
+          if (g != null && g.isNotEmpty) rawGroups.add(g);
+        }
+      }
+      final highlighted = highlightedMusclesForSession(
+        stats: stats,
+        workout: sessionWorkout,
+        exerciseIdToMuscleGroup: _exerciseMuscleGroup,
+      );
+      final bytes = await _shareCapture.captureFromWidget(
+        MediaQuery(
+          data: const MediaQueryData(),
+          child: Material(
+            color: Colors.transparent,
+            child: WorkoutShareCard(
+              workoutTitle: title,
+              stats: stats,
+              sessionBests: sessionBests,
+              aiOneLiner: _shareAiOneLiner(),
+              highlightedMuscles: highlighted,
+              trainedGroupLabels: trainedGroupLabelsFromIds(rawGroups),
+            ),
+          ),
+        ),
+        delay: const Duration(milliseconds: 20),
+        pixelRatio: 3,
+      );
+      await Share.shareXFiles(
+        [XFile.fromData(bytes, mimeType: 'image/png', name: 'gains-workout.png')],
+        text: 'Workout complete on Gains',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not share summary')),
+      );
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final stats = _stats;
@@ -147,6 +215,20 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
           icon: const Icon(Icons.close),
           onPressed: _leaveSummary,
         ),
+        actions: [
+          if (stats != null)
+            IconButton(
+              tooltip: 'Share story',
+              onPressed: _sharing ? null : () => _shareSummary(stats!),
+              icon: _sharing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.ios_share),
+            ),
+        ],
       ),
       body: _buildBody(stats),
       ),
@@ -356,6 +438,12 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
             onPressed: () => setState(() => _insightExpanded = !_insightExpanded),
             child: Text(_insightExpanded ? 'Hide analysis' : 'Show analysis'),
           ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: _sharing ? null : () => _shareSummary(stats),
+          icon: const Icon(Icons.ios_share),
+          label: const Text('Share to story'),
+        ),
         const SizedBox(height: 8),
         ElevatedButton(
           onPressed: _leaveSummary,
