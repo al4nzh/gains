@@ -22,6 +22,7 @@ type HomeResponse struct {
 	WeeklyVolumeWindowDays int                `json:"weekly_volume_window_days"`
 	WorkoutConsistency     WorkoutConsistency `json:"workout_consistency"`
 	StreakDays             int                `json:"streak_days"`
+	TrainToday             *TrainTodayRecommendation `json:"train_today,omitempty"`
 }
 
 // SetLoadSummary is reps + weight for one top set.

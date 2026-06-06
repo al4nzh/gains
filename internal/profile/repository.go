@@ -18,7 +18,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-const profileColumns = `user_id, age, weight_kg, height_cm, gender, fitness_goal, training_experience, preferred_split, injury_notes, activity_level, strength_elo, strength_elo_rank, strength_elo_change_30d, last_strength_elo_update, created_at, updated_at`
+const profileColumns = `user_id, age, weight_kg, height_cm, gender, fitness_goal, training_experience, preferred_split, training_days_per_week, injury_notes, activity_level, strength_elo, strength_elo_rank, strength_elo_change_30d, last_strength_elo_update, created_at, updated_at`
 
 // GetByUserID returns the row for user_id, or an in-memory empty profile (same user_id)
 // when no row exists yet.
@@ -39,9 +39,9 @@ func (r *Repository) Upsert(ctx context.Context, p *Profile) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO profiles (
 			user_id, age, weight_kg, height_cm, gender,
-			fitness_goal, training_experience, preferred_split, injury_notes, activity_level
+			fitness_goal, training_experience, preferred_split, training_days_per_week, injury_notes, activity_level
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (user_id) DO UPDATE SET
 			age = EXCLUDED.age,
 			weight_kg = EXCLUDED.weight_kg,
@@ -50,10 +50,11 @@ func (r *Repository) Upsert(ctx context.Context, p *Profile) error {
 			fitness_goal = EXCLUDED.fitness_goal,
 			training_experience = EXCLUDED.training_experience,
 			preferred_split = EXCLUDED.preferred_split,
+			training_days_per_week = EXCLUDED.training_days_per_week,
 			injury_notes = EXCLUDED.injury_notes,
 			activity_level = EXCLUDED.activity_level,
 			updated_at = NOW()
-	`, p.UserID, p.Age, p.WeightKg, p.HeightCm, p.Gender, p.FitnessGoal, p.TrainingExperience, p.PreferredSplit, p.InjuryNotes, p.ActivityLevel)
+	`, p.UserID, p.Age, p.WeightKg, p.HeightCm, p.Gender, p.FitnessGoal, p.TrainingExperience, p.PreferredSplit, p.TrainingDaysPerWeek, p.InjuryNotes, p.ActivityLevel)
 	return err
 }
 

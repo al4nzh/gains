@@ -3,11 +3,15 @@ import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/features/auth/session/auth_session.dart';
+import 'package:gains/features/profile/models/profile.dart';
+import 'package:gains/features/profile/models/starter_plan_recommendation.dart';
 import 'package:gains/features/routines/data/routine_api.dart';
 import 'package:gains/features/routines/models/routine_template.dart';
+import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
 
-/// First-run prompt after profile setup: copy a template or start a workout.
+/// First-run prompt after onboarding: personalized starter plan from templates.
 Future<void> showGettingStartedSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
@@ -29,25 +33,40 @@ class _GettingStartedSheet extends StatefulWidget {
 
 class _GettingStartedSheetState extends State<_GettingStartedSheet> {
   RoutineApi? _api;
-  List<RoutineTemplateSummary> _templates = [];
+  StarterPlanRecommendation? _plan;
+  List<RoutineTemplateSummary> _planTemplates = const [];
+  RoutineTemplateSummary? _firstTemplate;
   bool _loading = true;
   String? _error;
-  String? _busyTemplateId;
+  bool _busy = false;
 
   RoutineApi get api => _api ??= RoutineApi(context.read<ApiClient>());
 
   @override
   void initState() {
     super.initState();
-    _loadTemplates();
+    _load();
   }
 
-  Future<void> _loadTemplates() async {
+  Future<void> _load() async {
     try {
-      final list = await api.listTemplates();
+      final profile = context.read<AuthSession>().profile;
+      final plan = recommendStarterPlan(profile ?? const Profile(userId: ''));
+      final all = await api.listTemplates();
+      final resolved = resolveStarterTemplates(all, plan);
+      RoutineTemplateSummary? first;
+      for (final template in resolved) {
+        if (template.id == plan.firstTemplateId) {
+          first = template;
+          break;
+        }
+      }
+      first ??= resolved.isNotEmpty ? resolved.first : null;
       if (!mounted) return;
       setState(() {
-        _templates = list.take(4).toList();
+        _plan = plan;
+        _planTemplates = resolved;
+        _firstTemplate = first;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -59,36 +78,65 @@ class _GettingStartedSheetState extends State<_GettingStartedSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Could not load templates';
+        _error = 'Could not load starter plan';
         _loading = false;
       });
     }
   }
 
-  Future<void> _useTemplate(RoutineTemplateSummary t) async {
-    setState(() => _busyTemplateId = t.id);
+  Future<void> _addProgram() async {
+    if (_planTemplates.isEmpty) return;
+    setState(() => _busy = true);
     try {
-      final routine = await api.copyTemplate(t.id);
+      for (final template in _planTemplates) {
+        await api.copyTemplate(template.id);
+      }
       if (!mounted) return;
       Navigator.pop(context);
+      context.read<ShellTabRefresh>().bump(ShellTab.routines);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _planTemplates.length == 1
+                ? 'Routine added'
+                : '${_planTemplates.length} routines added',
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _startFirstOnly() async {
+    final first = _firstTemplate ?? (_planTemplates.isNotEmpty ? _planTemplates.first : null);
+    if (first == null) return;
+    setState(() => _busy = true);
+    try {
+      final routine = await api.copyTemplate(first.id);
+      if (!mounted) return;
+      Navigator.pop(context);
+      context.read<ShellTabRefresh>().bump(ShellTab.routines);
       context.push('/train/start?routineId=${routine.id}');
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
-      if (mounted) setState(() => _busyTemplateId = null);
+      if (mounted) setState(() => _busy = false);
     }
-  }
-
-  void _startEmpty() {
-    Navigator.pop(context);
-    context.push('/train/start');
   }
 
   @override
   Widget build(BuildContext context) {
+    final profile = context.watch<AuthSession>().profile;
     final bottom = MediaQuery.paddingOf(context).bottom;
+    final plan = _plan;
+    final first = _firstTemplate;
 
     return SafeArea(
       child: Padding(
@@ -109,22 +157,23 @@ class _GettingStartedSheetState extends State<_GettingStartedSheet> {
             ),
             const SizedBox(height: 20),
             Text(
-              'You\'re set up',
+              'Your starter plan',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Pick a quick way to log your first session.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
-            const SizedBox(height: 20),
+            if (profile != null)
+              Text(
+                starterPlanContextLine(profile),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+            const SizedBox(height: 16),
             if (_loading)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
+                padding: EdgeInsets.symmetric(vertical: 32),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_error != null)
@@ -132,66 +181,91 @@ class _GettingStartedSheetState extends State<_GettingStartedSheet> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(_error!, style: const TextStyle(color: AppColors.error)),
               )
-            else
-              ..._templates.map((t) {
-                final busy = _busyTemplateId == t.id;
-                return Padding(
+            else if (plan != null) ...[
+              Text(
+                plan.title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                plan.subtitle,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              ..._planTemplates.map(
+                (t) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: OutlinedButton(
-                    onPressed: busy ? null : () => _useTemplate(t),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.fitness_center, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t.name,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              if (t.description != null && t.description!.isNotEmpty)
                                 Text(
-                                  t.name,
-                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                  t.description!,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: AppColors.textMuted,
+                                      ),
                                 ),
-                                if (t.description != null && t.description!.isNotEmpty)
-                                  Text(
-                                    t.description!,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: AppColors.textSecondary,
-                                        ),
-                                  ),
-                              ],
-                            ),
+                            ],
                           ),
-                          if (busy)
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          else
-                            Text(
-                              '${t.exerciseCount} ex',
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.textMuted,
-                                  ),
-                            ),
-                        ],
-                      ),
+                        ),
+                        Text(
+                          '${t.exerciseCount} ex',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              }),
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: _busyTemplateId != null ? null : _startEmpty,
-              child: const Text('Start empty workout'),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Explore home first'),
-            ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: _busy || _planTemplates.isEmpty ? null : _addProgram,
+                child: _busy
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        _planTemplates.length == 1
+                            ? 'Add to my routines'
+                            : 'Add all ${_planTemplates.length} to my routines',
+                      ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: _busy || first == null ? null : _startFirstOnly,
+                child: Text('Start ${first?.name ?? 'workout'} now'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _busy ? null : () => Navigator.pop(context),
+                child: const Text('Explore home first'),
+              ),
+            ],
           ],
         ),
       ),

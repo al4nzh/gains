@@ -26,4 +26,12 @@ abstract final class ProfileOptions {
     ('active', 'Active'),
     ('very_active', 'Very active'),
   ];
+
+  /// Stored as 2–5 on the profile (`5` = five or more days per week).
+  static const daysPerWeek = [
+    ('2', '2 days'),
+    ('3', '3 days'),
+    ('4', '4 days'),
+    ('5', '5+ days'),
+  ];
 }

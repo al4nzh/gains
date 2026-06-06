@@ -28,6 +28,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   String? _goal;
   String? _experienceLevel;
+  String? _daysPerWeek;
   String? _activityLevel;
   String? _gender;
   bool _loading = false;
@@ -46,6 +47,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     _goal = p.goal;
     _experienceLevel = p.experience;
+    _daysPerWeek = p.trainingDaysPerWeek?.toString() ?? '3';
     _activityLevel = p.activityLevel;
     _gender = p.gender;
     _initialHeightCm = p.heightCm;
@@ -63,9 +65,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    if (_goal == null || _experienceLevel == null || _gender == null || _activityLevel == null) {
+    if (_goal == null ||
+        _experienceLevel == null ||
+        _gender == null ||
+        _activityLevel == null ||
+        _daysPerWeek == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select goal, experience, gender, and activity level')),
+        const SnackBar(
+          content: Text('Select goal, experience, days per week, gender, and activity level'),
+        ),
       );
       return;
     }
@@ -81,6 +89,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ProfileUpdate(
           goal: _goal,
           experience: _experienceLevel,
+          trainingDaysPerWeek: int.parse(_daysPerWeek!),
           heightCm: body.heightCm,
           weightKg: body.weightKg,
           activityLevel: _activityLevel,
@@ -150,6 +159,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               options: ProfileOptions.experience,
               selected: _experienceLevel,
               onSelected: (v) => setState(() => _experienceLevel = v),
+            ),
+            const SizedBox(height: 24),
+            _sectionLabel(context, 'Days per week'),
+            const SizedBox(height: 8),
+            OptionChipGroup(
+              options: ProfileOptions.daysPerWeek,
+              selected: _daysPerWeek,
+              onSelected: (v) => setState(() => _daysPerWeek = v),
             ),
             const SizedBox(height: 24),
             _sectionLabel(context, 'Gender'),

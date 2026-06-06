@@ -38,6 +38,7 @@ type Profile struct {
 	FitnessGoal           *string    `json:"fitness_goal,omitempty"        db:"fitness_goal"`
 	TrainingExperience    *string    `json:"training_experience,omitempty" db:"training_experience"`
 	PreferredSplit        *string    `json:"preferred_split,omitempty"     db:"preferred_split"`
+	TrainingDaysPerWeek   *int       `json:"training_days_per_week,omitempty" db:"training_days_per_week"`
 	InjuryNotes           *string    `json:"injury_notes,omitempty"          db:"injury_notes"`
 	ActivityLevel         *string    `json:"activity_level,omitempty"      db:"activity_level"`
 	StrengthElo           *int       `json:"strength_elo,omitempty" db:"strength_elo"`

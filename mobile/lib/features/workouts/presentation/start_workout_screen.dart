@@ -188,10 +188,30 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
     context.pushReplacement('/train/workout/${workout.id}');
   }
 
+  String? _workoutNameForStart() {
+    final customName = _name.text.trim();
+    if (customName.isNotEmpty) return customName;
+
+    final routineId = _selectedRoutineId;
+    if (routineId == null) return null;
+
+    final fromPreview = _selectedRoutine?.name.trim();
+    if (fromPreview != null && fromPreview.isNotEmpty) return fromPreview;
+
+    for (final routine in _routines) {
+      if (routine.id == routineId) {
+        final routineName = routine.name.trim();
+        if (routineName.isNotEmpty) return routineName;
+        break;
+      }
+    }
+    return null;
+  }
+
   Future<Workout> _createWorkout() {
     return _workoutApi.startWorkout(
       routineId: _selectedRoutineId,
-      name: _name.text.trim().isEmpty ? null : _name.text.trim(),
+      name: _workoutNameForStart(),
     );
   }
 

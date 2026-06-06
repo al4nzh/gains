@@ -29,8 +29,17 @@ class Workout {
 
   bool get isInProgress => completedAt == null;
 
-  String get displayName {
+  String get displayName => displayNameFor(const {});
+
+  String displayNameFor(Map<String, String> routineNames) {
     if (name != null && name!.trim().isNotEmpty) return name!.trim();
+    final routineId = this.routineId;
+    if (routineId != null) {
+      final routineName = routineNames[routineId];
+      if (routineName != null && routineName.trim().isNotEmpty) {
+        return routineName.trim();
+      }
+    }
     return 'Workout';
   }
 

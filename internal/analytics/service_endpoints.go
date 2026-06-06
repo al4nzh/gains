@@ -71,6 +71,16 @@ func (s *Service) Home(ctx context.Context, userID string) (*HomeResponse, error
 		out.LatestWorkout = &snap
 	}
 	out.Sharpness = sharpnessForHome(checkins, prof)
+
+	routines, err := s.routineRepo.ListRoutinesByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	active, err := s.workoutRepo.GetActiveWorkoutForUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out.TrainToday = buildTrainToday(now, out.Sharpness, active, routines, wrows)
 	return out, nil
 }
 

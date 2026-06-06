@@ -44,6 +44,12 @@ func Validate(p *Profile) error {
 	if p.Gender != nil && !isAllowedGender(*p.Gender) {
 		return errors.New("invalid gender: use female, male, or prefer_not_to_say")
 	}
+	if p.TrainingDaysPerWeek != nil {
+		d := *p.TrainingDaysPerWeek
+		if d < 2 || d > 5 {
+			return errors.New("training_days_per_week must be between 2 and 5")
+		}
+	}
 	return nil
 }
 

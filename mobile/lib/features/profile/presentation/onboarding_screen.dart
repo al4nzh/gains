@@ -32,6 +32,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _step = 0;
   String? _goal;
   String? _experienceLevel;
+  String? _daysPerWeek;
   String? _activityLevel;
   String? _gender;
   double? _heightCm;
@@ -52,6 +53,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     _goal = p.goal;
     _experienceLevel = p.experience;
+    _daysPerWeek = p.trainingDaysPerWeek?.toString();
     _activityLevel = p.activityLevel;
     _gender = p.gender;
     _initialHeightCm = p.heightCm;
@@ -68,6 +70,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         if (_goal == null || _experienceLevel == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Select your goal and experience level')),
+          );
+          return false;
+        }
+        if (_daysPerWeek == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Select how many days you can train')),
           );
           return false;
         }
@@ -162,6 +170,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ProfileUpdate(
           goal: _goal,
           experience: _experienceLevel,
+          trainingDaysPerWeek: int.parse(_daysPerWeek!),
           heightCm: heightCm,
           weightKg: weightKg,
           activityLevel: _activityLevel,
@@ -255,6 +264,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           options: ProfileOptions.experience,
           selected: _experienceLevel,
           onSelected: (v) => setState(() => _experienceLevel = v),
+        ),
+        const SizedBox(height: 24),
+        _sectionLabel(context, 'Days per week'),
+        const SizedBox(height: 8),
+        Text(
+          'We\'ll suggest a starter program that fits your schedule.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
+        ),
+        const SizedBox(height: 8),
+        OptionChipGroup(
+          options: ProfileOptions.daysPerWeek,
+          selected: _daysPerWeek,
+          onSelected: (v) => setState(() => _daysPerWeek = v),
         ),
       ],
     );

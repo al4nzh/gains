@@ -10,6 +10,7 @@ class HomeSummary {
     required this.weeklyVolumeWindowDays,
     required this.workoutConsistency,
     required this.streakDays,
+    this.trainToday,
   });
 
   final int? strengthElo;
@@ -22,6 +23,7 @@ class HomeSummary {
   final int weeklyVolumeWindowDays;
   final WorkoutConsistency workoutConsistency;
   final int streakDays;
+  final TrainTodayRecommendation? trainToday;
 
   factory HomeSummary.fromJson(Map<String, dynamic> json) {
     return HomeSummary(
@@ -41,6 +43,42 @@ class HomeSummary {
         json['workout_consistency'] as Map<String, dynamic>? ?? {},
       ),
       streakDays: json['streak_days'] as int? ?? 0,
+      trainToday: json['train_today'] != null
+          ? TrainTodayRecommendation.fromJson(
+              json['train_today'] as Map<String, dynamic>,
+            )
+          : null,
+    );
+  }
+}
+
+class TrainTodayRecommendation {
+  const TrainTodayRecommendation({
+    required this.action,
+    this.routineId,
+    required this.routineName,
+    this.workoutId,
+    required this.sharpnessScore,
+    required this.reasons,
+  });
+
+  final String action;
+  final String? routineId;
+  final String routineName;
+  final String? workoutId;
+  final int sharpnessScore;
+  final List<String> reasons;
+
+  factory TrainTodayRecommendation.fromJson(Map<String, dynamic> json) {
+    return TrainTodayRecommendation(
+      action: json['action'] as String? ?? 'start_routine',
+      routineId: json['routine_id'] as String?,
+      routineName: json['routine_name'] as String? ?? 'Workout',
+      workoutId: json['workout_id'] as String?,
+      sharpnessScore: json['sharpness_score'] as int? ?? 0,
+      reasons: (json['reasons'] as List<dynamic>? ?? [])
+          .map((e) => e as String)
+          .toList(),
     );
   }
 }

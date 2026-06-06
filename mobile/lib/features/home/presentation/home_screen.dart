@@ -13,6 +13,7 @@ import 'package:gains/features/home/presentation/widgets/home_stats_widgets.dart
 import 'package:gains/features/home/presentation/widgets/elo_rank_visual.dart';
 import 'package:gains/features/home/presentation/widgets/strength_elo_info.dart';
 import 'package:gains/features/home/presentation/widgets/home_week_activity.dart';
+import 'package:gains/features/home/presentation/widgets/train_today_card.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
 import 'package:gains/features/recovery/data/recovery_api.dart';
@@ -229,6 +230,10 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
             onSubmitted: _onReadinessSubmitted,
             onDismissed: _dismissReadiness,
           ),
+          const SizedBox(height: 12),
+        ],
+        if (data.trainToday != null) ...[
+          TrainTodayCard(recommendation: data.trainToday!),
           const SizedBox(height: 12),
         ],
         _EloCard(

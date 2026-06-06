@@ -34,6 +34,7 @@ type apiProfile struct {
 	Goal                  *string    `json:"goal,omitempty"`
 	Experience            *string    `json:"experience,omitempty"`
 	PreferredSplit        *string    `json:"preferred_split,omitempty"`
+	TrainingDaysPerWeek   *int       `json:"training_days_per_week,omitempty"`
 	InjuryNotes           *string    `json:"injury_notes,omitempty"`
 	ActivityLevel         *string    `json:"activity_level,omitempty"`
 	StrengthElo           *int       `json:"strength_elo,omitempty"`
@@ -51,8 +52,9 @@ type putBody struct {
 	Gender         *string  `json:"gender"`
 	Goal           *string  `json:"goal"`
 	Experience     *string  `json:"experience"`
-	PreferredSplit *string  `json:"preferred_split"`
-	InjuryNotes    *string  `json:"injury_notes"`
+	PreferredSplit      *string  `json:"preferred_split"`
+	TrainingDaysPerWeek *int     `json:"training_days_per_week"`
+	InjuryNotes         *string  `json:"injury_notes"`
 	ActivityLevel  *string  `json:"activity_level"`
 }
 
@@ -156,6 +158,9 @@ func mergePut(cur *Profile, b *putBody) *Profile {
 			out.PreferredSplit = &s
 		}
 	}
+	if b.TrainingDaysPerWeek != nil {
+		out.TrainingDaysPerWeek = b.TrainingDaysPerWeek
+	}
 	if b.InjuryNotes != nil {
 		if strings.TrimSpace(*b.InjuryNotes) == "" {
 			out.InjuryNotes = nil
@@ -185,6 +190,7 @@ func toAPI(p *Profile) apiProfile {
 		Goal:                  p.FitnessGoal,
 		Experience:            p.TrainingExperience,
 		PreferredSplit:        p.PreferredSplit,
+		TrainingDaysPerWeek:   p.TrainingDaysPerWeek,
 		InjuryNotes:           p.InjuryNotes,
 		ActivityLevel:         p.ActivityLevel,
 		StrengthElo:           p.StrengthElo,

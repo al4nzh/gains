@@ -7,11 +7,13 @@ class TrainHistoryTile extends StatelessWidget {
   const TrainHistoryTile({
     super.key,
     required this.workout,
+    required this.routineNames,
     required this.muscleGroups,
     required this.onTap,
   });
 
   final Workout workout;
+  final Map<String, String> routineNames;
   final List<String> muscleGroups;
   final VoidCallback onTap;
 
@@ -48,7 +50,7 @@ class TrainHistoryTile extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    workout.displayName,
+                                    workout.displayNameFor(routineNames),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 15,

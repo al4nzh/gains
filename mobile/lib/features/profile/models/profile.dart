@@ -7,6 +7,7 @@ class Profile {
     this.weightKg,
     this.activityLevel,
     this.gender,
+    this.trainingDaysPerWeek,
     this.injuryNotes,
     this.updatedAt,
   });
@@ -18,6 +19,8 @@ class Profile {
   final double? weightKg;
   final String? activityLevel;
   final String? gender;
+  /// 2–4 = exact days; 5 = five or more days per week.
+  final int? trainingDaysPerWeek;
   final String? injuryNotes;
   final DateTime? updatedAt;
 
@@ -44,6 +47,7 @@ class Profile {
       weightKg: _readDouble(json['weight_kg']),
       activityLevel: json['activity_level'] as String?,
       gender: json['gender'] as String?,
+      trainingDaysPerWeek: json['training_days_per_week'] as int?,
       injuryNotes: json['injury_notes'] as String?,
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)

@@ -4,6 +4,8 @@ import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/exercises/data/exercise_api.dart';
+import 'package:gains/features/routines/data/routine_api.dart';
+import 'package:gains/features/routines/models/routine.dart';
 import 'package:gains/features/recovery/utils/local_checkin_date.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
@@ -26,6 +28,7 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
   WorkoutApi? _api;
   List<Workout> _workouts = [];
   Map<String, String> _exerciseMuscleGroup = {};
+  Map<String, String> _routineNames = {};
   String? _error;
   bool _loading = true;
 
@@ -56,12 +59,17 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
       final muscleFuture = ExerciseApi(client)
           .loadMuscleGroupMap()
           .catchError((_) => <String, String>{});
+      final routinesFuture = RoutineApi(client)
+          .listRoutines()
+          .catchError((_) => <RoutineSummary>[]);
       final list = await workoutsFuture;
       final muscleMap = await muscleFuture;
+      final routines = await routinesFuture;
       if (!mounted) return;
       setState(() {
         _workouts = list;
         _exerciseMuscleGroup = muscleMap;
+        _routineNames = {for (final r in routines) r.id: r.name};
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -182,7 +190,7 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
             child: ListTile(
               leading: const Icon(Icons.fitness_center, color: AppColors.primary),
               title: Text(
-                active.displayName,
+                active.displayNameFor(_routineNames),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               subtitle: const Text('In progress · tap to continue'),
@@ -217,6 +225,7 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
           for (final w in section.workouts)
             TrainHistoryTile(
               workout: w,
+              routineNames: _routineNames,
               muscleGroups: muscleGroupsForWorkout(w, _exerciseMuscleGroup),
               onTap: () => _openWorkout(w),
             ),
