@@ -9,6 +9,7 @@ import 'package:gains/features/ai/data/ai_api.dart';
 import 'package:gains/features/ai/models/workout_insight.dart';
 import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
+import 'package:gains/core/theme/app_theme.dart';
 import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/finish_stats.dart';
@@ -175,22 +176,30 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
         workout: sessionWorkout,
         exerciseIdToMuscleGroup: _exerciseMuscleGroup,
       );
+      final units = context.read<BodyUnitsPreference>().units;
       final bytes = await _shareCapture.captureFromWidget(
-        MediaQuery(
-          data: const MediaQueryData(),
-          child: Material(
-            color: Colors.transparent,
-            child: WorkoutShareCard(
-              workoutTitle: title,
-              stats: stats,
-              sessionBests: sessionBests,
-              aiOneLiner: _shareAiOneLiner(),
-              highlightedMuscles: highlighted,
-              trainedGroupLabels: trainedGroupLabelsFromIds(rawGroups),
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+            child: Theme(
+              data: AppTheme.dark,
+              child: Material(
+                type: MaterialType.transparency,
+                child: WorkoutShareCard(
+                  workoutTitle: title,
+                  stats: stats,
+                  sessionBests: sessionBests,
+                  units: units,
+                  aiOneLiner: _shareAiOneLiner(),
+                  highlightedMuscles: highlighted,
+                  trainedGroupLabels: trainedGroupLabelsFromIds(rawGroups),
+                ),
+              ),
             ),
           ),
         ),
-        delay: const Duration(milliseconds: 20),
+        delay: const Duration(milliseconds: 100),
         pixelRatio: 3,
       );
       await Share.shareXFiles(

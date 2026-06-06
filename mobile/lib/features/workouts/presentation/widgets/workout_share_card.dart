@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_body_part_selector/flutter_body_part_selector.dart';
 import 'package:gains/core/theme/app_colors.dart';
-import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
 import 'package:gains/features/analytics/models/exercise_detail.dart';
@@ -9,7 +8,6 @@ import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/workouts/models/finish_stats.dart';
 import 'package:gains/features/workouts/models/workout_set.dart';
 import 'package:gains/features/workouts/presentation/widgets/session_muscles_diagram.dart';
-import 'package:provider/provider.dart';
 
 /// Best set per exercise for the share card (from logged workout sets).
 class ShareSessionBestSet {
@@ -65,6 +63,7 @@ class WorkoutShareCard extends StatelessWidget {
     required this.workoutTitle,
     required this.stats,
     required this.sessionBests,
+    required this.units,
     this.aiOneLiner,
     this.highlightedMuscles = const {},
     this.trainedGroupLabels = const [],
@@ -73,6 +72,7 @@ class WorkoutShareCard extends StatelessWidget {
   final String workoutTitle;
   final FinishStats stats;
   final List<ShareSessionBestSet> sessionBests;
+  final BodyUnitSystem units;
   final String? aiOneLiner;
   final Set<Muscle> highlightedMuscles;
   final List<String> trainedGroupLabels;
@@ -85,7 +85,6 @@ class WorkoutShareCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final units = context.watch<BodyUnitsPreference>().units;
     final bestByExercise = {for (final s in sessionBests) s.exerciseId: s};
     final prs = stats.prs;
     final prExerciseIds = prs.map((p) => p.exerciseId).toSet();
