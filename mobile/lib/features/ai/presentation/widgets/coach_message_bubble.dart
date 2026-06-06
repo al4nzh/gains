@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/ai/models/coach_message.dart';
+import 'package:provider/provider.dart';
 
 class CoachMessageBubble extends StatelessWidget {
   const CoachMessageBubble({super.key, required this.message});
@@ -10,6 +13,8 @@ class CoachMessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
+    final units = context.watch<BodyUnitsPreference>().units;
+    final content = isUser ? message.content : BodyUnits.formatAiWeightUnitsInText(message.content, units);
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -26,7 +31,7 @@ class CoachMessageBubble extends StatelessWidget {
           ),
         ),
         child: Text(
-          message.content,
+          content,
           style: TextStyle(
             color: isUser ? AppColors.onPrimary : AppColors.textPrimary,
             height: 1.35,

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/ai/models/coach_action.dart';
 import 'package:gains/features/ai/presentation/action_labels.dart';
+import 'package:provider/provider.dart';
 
 class CoachActionCard extends StatelessWidget {
   const CoachActionCard({
@@ -19,6 +22,7 @@ class CoachActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final units = context.watch<BodyUnitsPreference>().units;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       color: AppColors.surfaceElevated,
@@ -40,7 +44,7 @@ class CoachActionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            Text(describeCoachAction(action)),
+            Text(describeCoachAction(action, units)),
             if (action.reason != null && action.reason!.trim().isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(

@@ -4,6 +4,8 @@ import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/analytics/data/analytics_api.dart';
 import 'package:gains/features/analytics/models/exercise_detail.dart';
+import 'package:gains/core/units/body_units.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
 import 'package:gains/features/analytics/presentation/widgets/e1rm_trend_chart.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
@@ -107,6 +109,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
     final detail = _detail!;
     final historyNewestFirst = detail.history.reversed.toList();
+    final units = context.watch<BodyUnitsPreference>().units;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -137,7 +140,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 Text('Lifetime best e1RM', style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 4),
                 Text(
-                  formatE1rmKg(detail.absoluteBestE1rmKg),
+                  formatE1rmKg(detail.absoluteBestE1rmKg, units),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -145,7 +148,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 if (detail.absoluteBestSet != null) ...[
                   const SizedBox(height: 8),
                   Text(
-                    'Set ${formatSetLoad(detail.absoluteBestSet)}',
+                    'Set ${formatSetLoad(detail.absoluteBestSet, units)}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -166,7 +169,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         ),
         if (detail.latestComparison != null) ...[
           const SizedBox(height: 12),
-          _ComparisonCard(comparison: detail.latestComparison!),
+          _ComparisonCard(comparison: detail.latestComparison!, units: units),
         ],
         if (detail.history.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -174,6 +177,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             history: detail.history,
             trendSummary: detail.trendSummary,
             absoluteBestE1rmKg: detail.absoluteBestE1rmKg,
+            units: units,
           ),
         ],
         const SizedBox(height: 20),
@@ -192,16 +196,17 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 ),
           )
         else
-          ...historyNewestFirst.map((entry) => _HistoryTile(entry: entry)),
+          ...historyNewestFirst.map((entry) => _HistoryTile(entry: entry, units: units)),
       ],
     );
   }
 }
 
 class _ComparisonCard extends StatelessWidget {
-  const _ComparisonCard({required this.comparison});
+  const _ComparisonCard({required this.comparison, required this.units});
 
   final ExerciseLatestComparison comparison;
+  final BodyUnitSystem units;
 
   @override
   Widget build(BuildContext context) {
@@ -225,7 +230,7 @@ class _ComparisonCard extends StatelessWidget {
             const SizedBox(height: 12),
             _DeltaRow(
               label: 'e1RM',
-              value: formatE1rmDelta(comparison.e1rmChangeKg, pct: comparison.e1rmChangePct),
+              value: formatE1rmDelta(comparison.e1rmChangeKg, units, pct: comparison.e1rmChangePct),
               color: e1rmColor,
             ),
             const SizedBox(height: 8),
@@ -233,6 +238,7 @@ class _ComparisonCard extends StatelessWidget {
               label: 'Volume',
               value: formatE1rmDelta(
                 comparison.volumeChangeKg,
+                units,
                 pct: comparison.volumeChangePct,
               ),
               color: volColor,
@@ -241,12 +247,12 @@ class _ComparisonCard extends StatelessWidget {
               const SizedBox(height: 12),
               if (comparison.bestSetPrevious != null)
                 Text(
-                  'Previous top set ${formatSetLoad(comparison.bestSetPrevious)}',
+                  'Previous top set ${formatSetLoad(comparison.bestSetPrevious, units)}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               if (comparison.bestSetCurrent != null)
                 Text(
-                  'Latest top set ${formatSetLoad(comparison.bestSetCurrent)}',
+                  'Latest top set ${formatSetLoad(comparison.bestSetCurrent, units)}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
             ],
@@ -277,9 +283,10 @@ class _DeltaRow extends StatelessWidget {
 }
 
 class _HistoryTile extends StatelessWidget {
-  const _HistoryTile({required this.entry});
+  const _HistoryTile({required this.entry, required this.units});
 
   final ExerciseHistoryEntry entry;
+  final BodyUnitSystem units;
 
   @override
   Widget build(BuildContext context) {
@@ -298,9 +305,9 @@ class _HistoryTile extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Top set ${formatSetLoad(entry.bestSet)}'),
+            Text('Top set ${formatSetLoad(entry.bestSet, units)}'),
             Text(
-              'e1RM ${formatE1rmKg(entry.bestE1rmKg)} · ${formatVolumeKg(entry.volumeKg)}',
+              'e1RM ${formatE1rmKg(entry.bestE1rmKg, units)} · ${formatVolumeKg(entry.volumeKg, units)}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),

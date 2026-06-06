@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/features/ai/data/ai_api.dart';
 import 'package:gains/features/ai/models/clarification.dart';
 import 'package:gains/features/ai/models/coach_action.dart';
@@ -324,9 +325,11 @@ class _CoachScreenState extends State<CoachScreen> with ShellTabAutoRefresh {
     _scrollToBottom();
 
     try {
+      final units = context.read<BodyUnitsPreference>().apiUnitSystem;
       final response = await api.sendChatMessage(
         message: text,
         conversationId: _conversationId,
+        unitSystem: units,
       );
       if (!mounted) return;
 

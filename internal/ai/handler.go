@@ -93,7 +93,9 @@ func (h *Handler) analyzeWorkout(c *gin.Context) {
 		return
 	}
 	workoutID := c.Param("workoutId")
-	out, err := h.svc.AnalyzeWorkout(c.Request.Context(), userID, workoutID)
+	var req AnalyzeWorkoutRequest
+	_ = c.ShouldBindJSON(&req) // optional body
+	out, err := h.svc.AnalyzeWorkout(c.Request.Context(), userID, workoutID, req.UnitSystem)
 	if err != nil {
 		if aiquota.WriteError(c, err) {
 			return

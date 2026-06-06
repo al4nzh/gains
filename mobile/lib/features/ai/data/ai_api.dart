@@ -13,10 +13,14 @@ class AiApi {
 
   final ApiClient _client;
 
-  Future<WorkoutAnalysisInsight> analyzeWorkout(String workoutId) async {
+  Future<WorkoutAnalysisInsight> analyzeWorkout(
+    String workoutId, {
+    String unitSystem = 'metric',
+  }) async {
     try {
       final response = await _client.dio.post<Map<String, dynamic>>(
         '/ai/analyze-workout/$workoutId',
+        data: {'unit_system': unitSystem},
       );
       return WorkoutAnalysisInsight.fromJson(response.data!);
     } on DioException catch (e) {
@@ -51,6 +55,7 @@ class AiApi {
   Future<ChatResponse> sendChatMessage({
     required String message,
     String? conversationId,
+    String unitSystem = 'metric',
   }) async {
     try {
       final response = await _client.dio.post<Map<String, dynamic>>(
@@ -58,6 +63,7 @@ class AiApi {
         data: {
           'message': message,
           'conversation_id': ?conversationId,
+          'unit_system': unitSystem,
         },
       );
       return ChatResponse.fromJson(response.data!);

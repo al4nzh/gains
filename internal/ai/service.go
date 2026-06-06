@@ -64,7 +64,7 @@ func NewService(
 }
 
 // AnalyzeWorkout generates or returns the saved post-workout analysis (at most one per workout_id).
-func (s *Service) AnalyzeWorkout(ctx context.Context, userID, workoutID string) (*AnalyzeWorkoutResponse, error) {
+func (s *Service) AnalyzeWorkout(ctx context.Context, userID, workoutID, unitSystem string) (*AnalyzeWorkoutResponse, error) {
 	w, err := s.workouts.GetWorkoutForUser(ctx, userID, workoutID)
 	if err != nil {
 		if errors.Is(err, workout.ErrNotFound) {
@@ -102,7 +102,7 @@ func (s *Service) AnalyzeWorkout(ctx context.Context, userID, workoutID string) 
 		model = "gpt-4o-mini"
 	}
 
-	raw, err := ChatCompletion(ctx, s.cfg.OpenAIAPIKey, model, analyzeWorkoutSystemPrompt, string(payload), analyzeWorkoutMaxTokens)
+	raw, err := ChatCompletion(ctx, s.cfg.OpenAIAPIKey, model, analyzeWorkoutSystemPrompt+unitDisplayInstruction(normalizeUnitSystem(unitSystem)), string(payload), analyzeWorkoutMaxTokens)
 	if err != nil {
 		return nil, err
 	}

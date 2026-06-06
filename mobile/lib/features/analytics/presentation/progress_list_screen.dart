@@ -6,6 +6,7 @@ import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/analytics/data/analytics_api.dart';
 import 'package:gains/features/analytics/models/exercise_progression.dart';
 import 'package:gains/core/widgets/skeleton.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
 import 'package:gains/features/analytics/presentation/widgets/e1rm_trend_chart.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
@@ -202,6 +203,7 @@ class _ExerciseProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final changeColor = e1rmChangeColor(row.e1rmChangeKg);
     final trend = row.trend;
+    final units = context.watch<BodyUnitsPreference>().units;
     final isPr = (row.latestE1rmKg > 0) && (row.latestE1rmKg >= row.absoluteBestE1rmKg - 0.01);
 
     return Card(
@@ -222,7 +224,7 @@ class _ExerciseProgressCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Latest e1RM ${formatE1rmKg(row.latestE1rmKg)}',
+                      'Latest e1RM ${formatE1rmKg(row.latestE1rmKg, units)}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w500,
@@ -231,7 +233,7 @@ class _ExerciseProgressCard extends StatelessWidget {
                     if (row.latestBestSet != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Top set ${formatSetLoad(row.latestBestSet)}',
+                        'Top set ${formatSetLoad(row.latestBestSet, units)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textPrimary,
                             ),
@@ -239,7 +241,7 @@ class _ExerciseProgressCard extends StatelessWidget {
                     ],
                     const SizedBox(height: 4),
                     Text(
-                      'Lifetime best ${formatE1rmKg(row.absoluteBestE1rmKg)} · ${row.dataPoints} sessions',
+                      'Lifetime best ${formatE1rmKg(row.absoluteBestE1rmKg, units)} · ${row.dataPoints} sessions',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -260,7 +262,7 @@ class _ExerciseProgressCard extends StatelessWidget {
                       Icon(trendIcon(trend), size: 18, color: trendColor(trend)),
                       const SizedBox(width: 4),
                       Text(
-                        formatE1rmDelta(row.e1rmChangeKg, pct: row.e1rmChangePct),
+                        formatE1rmDelta(row.e1rmChangeKg, units, pct: row.e1rmChangePct),
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           color: changeColor,

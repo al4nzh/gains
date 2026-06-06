@@ -1,3 +1,5 @@
+import 'package:gains/core/units/body_units.dart';
+
 /// [percentile] = share of rated lifters you're stronger than (0–100, from API).
 /// When [profileGender] is female or male, copy reflects peer-group comparison.
 String formatStrengthPercentile(int percentile, {String? profileGender}) {
@@ -36,10 +38,7 @@ String formatEloChange(int? delta) {
   return delta.toString();
 }
 
-String formatVolumeKg(double kg) {
-  if (kg >= 1000) return '${(kg / 1000).toStringAsFixed(1)}k kg';
-  return '${kg.toStringAsFixed(0)} kg';
-}
+String formatVolumeKg(double kg, BodyUnitSystem units) => BodyUnits.formatVolumeKg(kg, units);
 
 String formatDuration(int seconds) {
   if (seconds < 60) return '${seconds}s';

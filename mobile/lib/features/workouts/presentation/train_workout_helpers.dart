@@ -1,3 +1,4 @@
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/recovery/utils/local_checkin_date.dart';
 import 'package:gains/features/workouts/models/workout.dart';
@@ -109,8 +110,8 @@ String sectionHeaderForDateKey(String yyyyMmDd) {
   return '${months[m - 1]} $d, $y';
 }
 
-String workoutSessionSubtitle(Workout w) {
-  final vol = w.totalVolumeKg != null ? formatVolumeKg(w.totalVolumeKg!) : null;
+String workoutSessionSubtitle(Workout w, BodyUnitSystem units) {
+  final vol = w.totalVolumeKg != null ? formatVolumeKg(w.totalVolumeKg!, units) : null;
   final dur = w.durationSeconds != null ? formatDuration(w.durationSeconds!) : null;
   final parts = <String>[];
   if (vol != null) parts.add(vol);

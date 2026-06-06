@@ -71,6 +71,7 @@ func (s *Service) Chat(ctx context.Context, userID string, req ChatRequest) (*Ch
 	if err != nil {
 		return nil, err
 	}
+	systemPrompt += unitDisplayInstruction(normalizeUnitSystem(req.UnitSystem))
 	openAIMsgs = append(openAIMsgs, openAIChatMessage{Role: "system", Content: systemPrompt})
 	for _, m := range history {
 		openAIMsgs = append(openAIMsgs, openAIChatMessage{Role: m.Role, Content: m.Content})

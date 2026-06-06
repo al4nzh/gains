@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/analytics/models/exercise_detail.dart';
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
 /// Compact sparkline for the progress exercise list.
 class E1rmSparkline extends StatelessWidget {
@@ -91,11 +92,13 @@ class E1rmTrendChartCard extends StatelessWidget {
     required this.history,
     required this.trendSummary,
     required this.absoluteBestE1rmKg,
+    required this.units,
   });
 
   final List<ExerciseHistoryEntry> history;
   final String trendSummary;
   final double absoluteBestE1rmKg;
+  final BodyUnitSystem units;
 
   @override
   Widget build(BuildContext context) {
@@ -129,6 +132,7 @@ class E1rmTrendChartCard extends StatelessWidget {
                   history: history,
                   trendSummary: trendSummary,
                   absoluteBestE1rmKg: absoluteBestE1rmKg,
+                  units: units,
                 ),
               ),
             ),
@@ -144,11 +148,13 @@ class _E1rmTrendChartPainter extends CustomPainter {
     required this.history,
     required this.trendSummary,
     required this.absoluteBestE1rmKg,
+    required this.units,
   });
 
   final List<ExerciseHistoryEntry> history;
   final String trendSummary;
   final double absoluteBestE1rmKg;
+  final BodyUnitSystem units;
 
   static const _leftPad = 44.0;
   static const _rightPad = 8.0;
@@ -190,7 +196,9 @@ class _E1rmTrendChartPainter extends CustomPainter {
       final t = i / 2;
       final y = chartTop + chartH * (1 - t);
       canvas.drawLine(Offset(chartLeft, y), Offset(chartLeft + chartW, y), gridPaint);
-      final label = formatE1rmKg(minV + (maxV - minV) * t).replaceAll(' kg', '');
+      final label = formatE1rmKg(minV + (maxV - minV) * t, units)
+          .replaceAll(' kg', '')
+          .replaceAll(' lb', '');
       _drawText(canvas, label, Offset(0, y - 6), labelStyle, width: _leftPad - 4, align: TextAlign.right);
     }
 

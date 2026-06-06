@@ -1,17 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/analytics/models/exercise_detail.dart';
 
-String formatE1rmKg(double kg) => '${kg.toStringAsFixed(1)} kg';
-
-String formatSetLoad(SetLoadSummary? set) {
-  if (set == null || !set.hasValues) return '—';
-  return '${set.reps} × ${set.weightKg!.toStringAsFixed(1)} kg';
+String formatE1rmKg(double kg, BodyUnitSystem units) {
+  if (units == BodyUnitSystem.imperial) {
+    final lb = kg / BodyUnits.kgPerLb;
+    return '${lb.toStringAsFixed(1)} lb';
+  }
+  return '${kg.toStringAsFixed(1)} kg';
 }
 
-String formatE1rmDelta(double kg, {double? pct}) {
-  final sign = kg > 0 ? '+' : '';
-  final base = '$sign${kg.toStringAsFixed(1)} kg';
+String formatSetLoad(SetLoadSummary? set, BodyUnitSystem units) {
+  if (set == null || !set.hasValues) return '—';
+  final w = BodyUnits.formatWeightKg(set.weightKg!, units);
+  final unit = units == BodyUnitSystem.imperial ? 'lb' : 'kg';
+  return '${set.reps} × $w $unit';
+}
+
+String formatE1rmDelta(double kg, BodyUnitSystem units, {double? pct}) {
+  final sign = kg > 0 ? '+' : (kg < 0 ? '-' : '');
+  final value = units == BodyUnitSystem.imperial ? kg.abs() / BodyUnits.kgPerLb : kg.abs();
+  final unit = units == BodyUnitSystem.imperial ? 'lb' : 'kg';
+  final base = '$sign${value.toStringAsFixed(1)} $unit';
   if (pct == null) return base;
   final pctSign = pct > 0 ? '+' : '';
   return '$base ($pctSign${pct.toStringAsFixed(1)}%)';

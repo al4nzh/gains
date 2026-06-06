@@ -3,8 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
+import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
 import 'package:gains/features/ai/data/ai_api.dart';
 import 'package:gains/features/ai/models/workout_insight.dart';
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
@@ -116,7 +119,11 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
     });
 
     try {
-      final insight = await AiApi(context.read<ApiClient>()).analyzeWorkout(widget.workoutId);
+      final unitSystem = context.read<BodyUnitsPreference>().apiUnitSystem;
+      final insight = await AiApi(context.read<ApiClient>()).analyzeWorkout(
+        widget.workoutId,
+        unitSystem: unitSystem,
+      );
       if (!mounted) return;
       setState(() {
         _insight = insight;
@@ -277,6 +284,8 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
       }
     }
 
+    final units = context.watch<BodyUnitsPreference>().units;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -287,7 +296,7 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: _StatCard(label: 'Volume', value: formatVolumeKg(stats.totalVolumeKg))),
+            Expanded(child: _StatCard(label: 'Volume', value: formatVolumeKg(stats.totalVolumeKg, units))),
             const SizedBox(width: 8),
             Expanded(child: _StatCard(label: 'Duration', value: formatDuration(stats.durationSeconds))),
           ],
@@ -360,7 +369,7 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
               child: ListTile(
                 title: Text(pr.exerciseName, style: const TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: Text(
-                  'e1RM ${pr.previousBestE1rmKg.toStringAsFixed(1)} → ${pr.newBestE1rmKg.toStringAsFixed(1)} kg',
+                  'e1RM ${formatE1rmKg(pr.previousBestE1rmKg, units)} → ${formatE1rmKg(pr.newBestE1rmKg, units)}',
                 ),
                 leading: const Icon(Icons.emoji_events_outlined, color: AppColors.primary),
               ),
@@ -383,7 +392,7 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
               child: ListTile(
                 title: Text(e.exerciseName),
                 trailing: Text(
-                  '${e.bestE1rmKg.toStringAsFixed(1)} kg',
+                  formatE1rmKg(e.bestE1rmKg, units),
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
@@ -400,7 +409,7 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
         ),
         const SizedBox(height: 8),
         if (_insight != null && _insightExpanded) ...[
-          _WorkoutInsightCard(insight: _insight!),
+          _WorkoutInsightCard(insight: _insight!, units: units),
           const SizedBox(height: 8),
         ],
         if (_analyzing) ...[
@@ -456,9 +465,10 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
 }
 
 class _WorkoutInsightCard extends StatelessWidget {
-  const _WorkoutInsightCard({required this.insight});
+  const _WorkoutInsightCard({required this.insight, required this.units});
 
   final WorkoutAnalysisInsight insight;
+  final BodyUnitSystem units;
 
   @override
   Widget build(BuildContext context) {
@@ -475,7 +485,7 @@ class _WorkoutInsightCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    insight.title,
+                    BodyUnits.formatAiWeightUnitsInText(insight.title, units),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
@@ -484,7 +494,7 @@ class _WorkoutInsightCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            ..._insightMessageParagraphs(context, insight.message),
+            ..._insightMessageParagraphs(context, BodyUnits.formatAiWeightUnitsInText(insight.message, units)),
           ],
         ),
       ),

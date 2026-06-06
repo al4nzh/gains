@@ -16,6 +16,7 @@ import 'package:gains/features/workouts/presentation/widgets/active_workout_dial
 import 'package:gains/features/workouts/presentation/widgets/add_exercise_sheet.dart';
 import 'package:gains/features/workouts/presentation/widgets/log_set_slot_row.dart';
 import 'package:gains/features/workouts/presentation/widgets/workout_exercise_header.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/features/workouts/presentation/workout_plan.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
@@ -543,6 +544,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
       );
     }
 
+    final units = context.watch<BodyUnitsPreference>().units;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
       children: [
@@ -559,7 +562,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
               if (exercise.lastBestSet != null && exercise.lastBestSet!.hasValues)
                 workoutExerciseSubtitle(
                   context,
-                  formatLastBestSet(exercise.lastBestSet),
+                  formatLastBestSet(exercise.lastBestSet, units),
                   color: AppColors.primary,
                 ),
             ],

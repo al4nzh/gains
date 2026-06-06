@@ -16,6 +16,8 @@ class BodyUnitsPreference extends ChangeNotifier {
 
   bool get isMetric => _units == BodyUnitSystem.metric;
 
+  String get apiUnitSystem => isMetric ? 'metric' : 'imperial';
+
   static BodyUnitSystem _loadInitial(SharedPreferences prefs) {
     final stored = prefs.getString(_key);
     if (stored == 'imperial') return BodyUnitSystem.imperial;

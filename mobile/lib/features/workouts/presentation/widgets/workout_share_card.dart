@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_body_part_selector/flutter_body_part_selector.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
 import 'package:gains/features/analytics/models/exercise_detail.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/workouts/models/finish_stats.dart';
 import 'package:gains/features/workouts/models/workout_set.dart';
 import 'package:gains/features/workouts/presentation/widgets/session_muscles_diagram.dart';
+import 'package:provider/provider.dart';
 
 /// Best set per exercise for the share card (from logged workout sets).
 class ShareSessionBestSet {
@@ -24,7 +27,8 @@ class ShareSessionBestSet {
   final double weightKg;
   final double bestE1rmKg;
 
-  String get setLabel => formatSetLoad(SetLoadSummary(reps: reps, weightKg: weightKg));
+  String setLabel(BodyUnitSystem units) =>
+      formatSetLoad(SetLoadSummary(reps: reps, weightKg: weightKg), units);
 }
 
 /// Brzycki e1RM — keep in sync with server [strength.Estimate1RMBrzycki].
@@ -81,6 +85,7 @@ class WorkoutShareCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final units = context.watch<BodyUnitsPreference>().units;
     final bestByExercise = {for (final s in sessionBests) s.exerciseId: s};
     final prs = stats.prs;
     final prExerciseIds = prs.map((p) => p.exerciseId).toSet();
@@ -93,7 +98,7 @@ class WorkoutShareCard extends StatelessWidget {
 
     String setLabelFor(String exerciseId) {
       final best = bestByExercise[exerciseId];
-      if (best != null) return best.setLabel;
+      if (best != null) return best.setLabel(units);
       return '—';
     }
 
@@ -154,7 +159,7 @@ class WorkoutShareCard extends StatelessWidget {
                   Expanded(
                     child: _ShareStatChip(
                       label: 'Volume',
-                      value: formatVolumeKg(stats.totalVolumeKg),
+                      value: formatVolumeKg(stats.totalVolumeKg, units),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -184,7 +189,7 @@ class WorkoutShareCard extends StatelessWidget {
                 for (final lift in otherLifts)
                   _ShareLineRow(
                     left: lift.exerciseName,
-                    right: lift.setLabel,
+                    right: lift.setLabel(units),
                   ),
                 if (otherOverflow > 0)
                   _ShareOverflowText('+$otherOverflow more exercise${otherOverflow == 1 ? '' : 's'}'),

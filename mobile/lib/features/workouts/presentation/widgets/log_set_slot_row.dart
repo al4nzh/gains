@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/core/widgets/gains_text_field.dart';
 import 'package:gains/features/analytics/models/exercise_detail.dart';
 import 'package:gains/features/workouts/data/workout_api.dart';
@@ -54,10 +56,19 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
   @override
   void initState() {
     super.initState();
-    _reps = TextEditingController(text: _resolveReps());
-    _weight = TextEditingController(text: _resolveWeight());
+    _reps = TextEditingController();
+    _weight = TextEditingController();
     _reps.addListener(_notifyDraft);
     _weight.addListener(_notifyDraft);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_weight.text.isEmpty && _reps.text.isEmpty) {
+      _setTextSilently(_reps, _resolveReps());
+      _setTextSilently(_weight, _resolveWeight());
+    }
   }
 
   @override
@@ -98,14 +109,13 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
   }
 
   String _resolveWeight() {
+    final units = context.read<BodyUnitsPreference>().units;
     if (widget.draftWeight != null && widget.draftWeight!.isNotEmpty) return widget.draftWeight!;
     if (widget.logged != null) {
-      final w = widget.logged!.weightKg;
-      return w % 1 == 0 ? w.toInt().toString() : w.toString();
+      return BodyUnits.formatWeightKg(widget.logged!.weightKg, units);
     }
     if (widget.prefill?.weightKg != null) {
-      final w = widget.prefill!.weightKg!;
-      return w % 1 == 0 ? w.toInt().toString() : w.toString();
+      return BodyUnits.formatWeightKg(widget.prefill!.weightKg!, units);
     }
     return '';
   }
@@ -129,10 +139,11 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
 
   Future<void> _save() async {
     final reps = int.tryParse(_reps.text.trim());
-    final weight = double.tryParse(_weight.text.trim());
+    final units = context.read<BodyUnitsPreference>().units;
+    final weight = BodyUnits.parseWeightToKg(_weight.text.trim(), units);
     if (reps == null || reps <= 0 || weight == null || weight <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter valid reps and weight')),
+        SnackBar(content: Text('Enter valid reps and ${units == BodyUnitSystem.imperial ? 'weight (lb)' : 'weight (kg)'}')),
       );
       return;
     }
@@ -205,6 +216,8 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
   Widget build(BuildContext context) {
     super.build(context);
     final isLogged = widget.logged != null;
+    final units = context.watch<BodyUnitsPreference>().units;
+    final weightLabel = units == BodyUnitSystem.metric ? 'kg' : 'lb';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
@@ -243,7 +256,7 @@ class _LogSetSlotRowState extends State<LogSetSlotRow> with AutomaticKeepAliveCl
                   ignoring: _saving,
                   child: GainsTextField(
                     controller: _weight,
-                    label: 'kg',
+                    label: weightLabel,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   ),
                 ),

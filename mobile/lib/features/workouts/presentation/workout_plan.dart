@@ -1,3 +1,4 @@
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/adaptive_recommendations/models/applied_adjustment.dart';
 import 'package:gains/features/analytics/models/exercise_detail.dart';
 import 'package:gains/features/routines/models/routine_exercise.dart';
@@ -261,9 +262,9 @@ WorkoutExercisePlan _planForExercise({
   );
 }
 
-String formatLastBestSet(SetLoadSummary? s) {
+String formatLastBestSet(SetLoadSummary? s, BodyUnitSystem units) {
   if (s == null || !s.hasValues) return '';
-  final w = s.weightKg!;
-  final weight = w % 1 == 0 ? w.toInt().toString() : w.toStringAsFixed(1);
-  return 'Last: ${s.reps} × $weight kg';
+  final w = BodyUnits.formatWeightKg(s.weightKg!, units);
+  final unit = units == BodyUnitSystem.imperial ? 'lb' : 'kg';
+  return 'Last: ${s.reps} × $w $unit';
 }

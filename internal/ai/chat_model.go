@@ -37,6 +37,7 @@ type CoachMessage struct {
 type ChatRequest struct {
 	Message        string  `json:"message"`
 	ConversationID *string `json:"conversation_id,omitempty"`
+	UnitSystem     string  `json:"unit_system,omitempty"`
 }
 
 // ChatResponse is POST /ai/chat 200 body.

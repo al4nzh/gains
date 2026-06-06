@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/workouts/models/workout.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/features/workouts/presentation/train_workout_helpers.dart';
+import 'package:provider/provider.dart';
 
 class TrainHistoryTile extends StatelessWidget {
   const TrainHistoryTile({
@@ -20,6 +22,7 @@ class TrainHistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasPr = workoutHadPr(workout);
+    final units = context.watch<BodyUnitsPreference>().units;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -66,7 +69,7 @@ class TrainHistoryTile extends StatelessWidget {
                             ],
                             const SizedBox(height: 6),
                             Text(
-                              workoutSessionSubtitle(workout),
+                              workoutSessionSubtitle(workout, units),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: AppColors.textSecondary,
                                   ),

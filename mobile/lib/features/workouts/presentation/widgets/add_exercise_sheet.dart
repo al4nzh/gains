@@ -6,6 +6,7 @@ import 'package:gains/features/analytics/models/exercise_detail.dart';
 import 'package:gains/features/exercises/data/exercise_api.dart';
 import 'package:gains/features/exercises/models/catalog_exercise.dart';
 import 'package:gains/features/exercises/presentation/widgets/catalog_exercise_picker.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/features/workouts/presentation/workout_plan.dart';
 import 'package:provider/provider.dart';
 
@@ -89,6 +90,7 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
   @override
   Widget build(BuildContext context) {
     final listHeight = MediaQuery.sizeOf(context).height * 0.34;
+    final units = context.watch<BodyUnitsPreference>().units;
 
     return SafeArea(
       child: Column(
@@ -149,7 +151,7 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Text(
-                          formatLastBestSet(_prefill),
+                          formatLastBestSet(_prefill, units),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
                         ),
                       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/profile/presentation/getting_started_sheet.dart';
@@ -504,6 +505,7 @@ class _LatestWorkoutCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final units = context.watch<BodyUnitsPreference>().units;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -526,7 +528,7 @@ class _LatestWorkoutCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '${formatVolumeKg(workout!.totalVolumeKg)} · ${formatDuration(workout!.durationSeconds)} · ${workout!.setCount} sets',
+                '${formatVolumeKg(workout!.totalVolumeKg, units)} · ${formatDuration(workout!.durationSeconds)} · ${workout!.setCount} sets',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
                     ),

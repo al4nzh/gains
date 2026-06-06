@@ -1,3 +1,4 @@
+import 'package:gains/core/units/body_units.dart';
 import 'package:gains/features/ai/models/coach_action.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/routines/presentation/routine_formatters.dart';
@@ -31,7 +32,7 @@ String coachActionTitle(String actionType) {
   }
 }
 
-String describeCoachAction(CoachAction action) {
+String describeCoachAction(CoachAction action, BodyUnitSystem units) {
   final p = action.payload ?? {};
   switch (action.actionType) {
     case 'update_goal':
@@ -42,10 +43,16 @@ String describeCoachAction(CoachAction action) {
       return notes != null && notes.isNotEmpty ? 'Set injury notes: $notes' : 'Clear or update injury notes';
     case 'update_bodyweight':
       final w = p['weight_kg'];
-      return w != null ? 'Set bodyweight to $w kg' : 'Update bodyweight';
+      if (w is num) {
+        return 'Set bodyweight to ${BodyUnits.formatWeightDisplay(w.toDouble(), units)}';
+      }
+      return 'Update bodyweight';
     case 'update_height':
       final h = p['height_cm'];
-      return h != null ? 'Set height to $h cm' : 'Update height';
+      if (h is num) {
+        return 'Set height to ${BodyUnits.formatHeightDisplay(h.toDouble(), units)}';
+      }
+      return 'Update height';
     case 'rename_routine':
       final name = p['name']?.toString();
       return name != null ? 'Rename routine to “$name”' : 'Rename routine';

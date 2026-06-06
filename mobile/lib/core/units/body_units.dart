@@ -130,6 +130,29 @@ abstract final class BodyUnits {
     return lb.toStringAsFixed(1);
   }
 
+  /// Total tonnage (sum of weight×reps stored as kg).
+  static String formatVolumeKg(double kg, BodyUnitSystem units) {
+    if (units == BodyUnitSystem.imperial) {
+      final lb = kg / kgPerLb;
+      if (lb >= 1000) return '${(lb / 1000).toStringAsFixed(1)}k lb';
+      return '${lb.toStringAsFixed(0)} lb';
+    }
+    if (kg >= 1000) return '${(kg / 1000).toStringAsFixed(1)}k kg';
+    return '${kg.toStringAsFixed(0)} kg';
+  }
+
+  /// Converts "85 kg" style phrases in AI copy when user prefers imperial.
+  static String formatAiWeightUnitsInText(String text, BodyUnitSystem units) {
+    if (units == BodyUnitSystem.metric) return text;
+    return text.replaceAllMapped(
+      RegExp(r'(\d+(?:\.\d+)?)\s*kg\b', caseSensitive: false),
+      (m) {
+        final kg = double.parse(m.group(1)!);
+        return '${formatWeightKg(kg, units)} lb';
+      },
+    );
+  }
+
   static String? validateHeightInput(String? raw, BodyUnitSystem units) {
     if (raw == null || raw.trim().isEmpty) return 'Required';
     final cm = parseHeightToCm(raw, units);

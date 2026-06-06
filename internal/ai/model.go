@@ -24,6 +24,11 @@ type Insight struct {
 	CreatedAt     time.Time       `json:"created_at"    db:"created_at"`
 }
 
+// AnalyzeWorkoutRequest is optional JSON body for POST /ai/analyze-workout/:workoutId.
+type AnalyzeWorkoutRequest struct {
+	UnitSystem string `json:"unit_system,omitempty"`
+}
+
 // AnalyzeWorkoutResponse is the JSON body for POST /ai/analyze-workout/:workoutId.
 type AnalyzeWorkoutResponse struct {
 	ID             string          `json:"id"`

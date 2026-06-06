@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/home/models/home_summary.dart';
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/home/presentation/widgets/home_week_activity.dart';
 import 'package:gains/features/recovery/utils/local_checkin_date.dart';
+import 'package:provider/provider.dart';
 
 class HomeStatsSection extends StatelessWidget {
   const HomeStatsSection({
@@ -59,6 +61,7 @@ class _VolumeStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final units = context.watch<BodyUnitsPreference>().units;
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -71,7 +74,7 @@ class _VolumeStatCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              formatVolumeKg(volumeKg),
+              formatVolumeKg(volumeKg, units),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
           ],
