@@ -111,8 +111,6 @@ func main() {
 	authHandler.RegisterRoutes(r, authLimiter.Middleware(), requireAuth)
 
 	profileRepo := profile.NewRepository(pool)
-	profileHandler := profile.NewHandler(profileRepo)
-	profileHandler.RegisterRoutes(r, requireAppAccess, profileLimiter.Middleware())
 
 	exerciseRepo := exercise.NewRepository(pool)
 	exerciseDBClient := exercisedb.NewClient(cfg.ExerciseDBBaseURL)
@@ -146,6 +144,9 @@ func main() {
 	analyticsSvc := analytics.NewService(analyticsRepo, recoveryRepo, profileRepo, routineRepo, workoutRepo, aiRepo)
 	analyticsHandler := analytics.NewHandler(analyticsSvc)
 	analyticsHandler.RegisterRoutes(r, requireAppAccess, analyticsLimiter.Middleware())
+
+	profileHandler := profile.NewHandler(profileRepo, analyticsSvc)
+	profileHandler.RegisterRoutes(r, requireAppAccess, profileLimiter.Middleware())
 
 	aiLimiter := middleware.NewIPRateLimiter(cfg.AIRateLimitRPS, cfg.AIRateLimitBurst)
 	aiQuotaRepo := aiquota.NewRepository(pool)

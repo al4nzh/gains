@@ -1,3 +1,5 @@
+import 'package:gains/features/profile/models/gym_archetype.dart';
+
 class Profile {
   const Profile({
     required this.userId,
@@ -10,6 +12,7 @@ class Profile {
     this.trainingDaysPerWeek,
     this.injuryNotes,
     this.updatedAt,
+    this.gymArchetype,
   });
 
   final String userId;
@@ -23,6 +26,7 @@ class Profile {
   final int? trainingDaysPerWeek;
   final String? injuryNotes;
   final DateTime? updatedAt;
+  final GymArchetype? gymArchetype;
 
   /// Show profile setup until required fields for home/coach are present.
   bool get needsOnboarding {
@@ -51,6 +55,9 @@ class Profile {
       injuryNotes: json['injury_notes'] as String?,
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
+          : null,
+      gymArchetype: json['gym_archetype'] is Map<String, dynamic>
+          ? GymArchetype.fromJson(json['gym_archetype'] as Map<String, dynamic>)
           : null,
     );
   }

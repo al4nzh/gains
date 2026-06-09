@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -8,15 +9,21 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"gainsai/internal/auth"
+	"gainsai/internal/gymarchetype"
 	"gainsai/internal/strength"
 )
 
-type Handler struct {
-	repo *Repository
+type gymArchetypeProvider interface {
+	GymArchetype(ctx context.Context, userID string) (gymarchetype.Response, error)
 }
 
-func NewHandler(repo *Repository) *Handler {
-	return &Handler{repo: repo}
+type Handler struct {
+	repo       *Repository
+	archetypes gymArchetypeProvider
+}
+
+func NewHandler(repo *Repository, archetypes gymArchetypeProvider) *Handler {
+	return &Handler{repo: repo, archetypes: archetypes}
 }
 
 func (h *Handler) RegisterRoutes(r *gin.Engine, requireAuth gin.HandlerFunc, limiter gin.HandlerFunc) {
@@ -42,6 +49,7 @@ type apiProfile struct {
 	StrengthEloChange30d  *int       `json:"strength_elo_change_30d,omitempty"`
 	LastStrengthEloUpdate *time.Time `json:"last_strength_elo_update,omitempty"`
 	UpdatedAt             *time.Time `json:"updated_at,omitempty"`
+	GymArchetype          any        `json:"gym_archetype,omitempty"`
 }
 
 // putBody uses API field names from the product spec (goal, experience, etc.).
@@ -69,7 +77,16 @@ func (h *Handler) get(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
-	c.JSON(http.StatusOK, toAPI(p))
+	api := toAPI(p)
+	if h.archetypes != nil {
+		archetype, err := h.archetypes.GymArchetype(c.Request.Context(), userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			return
+		}
+		api.GymArchetype = archetype
+	}
+	c.JSON(http.StatusOK, api)
 }
 
 func (h *Handler) put(c *gin.Context) {
@@ -112,7 +129,16 @@ func (h *Handler) put(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
-	c.JSON(http.StatusOK, toAPI(saved))
+	api := toAPI(saved)
+	if h.archetypes != nil {
+		archetype, err := h.archetypes.GymArchetype(c.Request.Context(), userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			return
+		}
+		api.GymArchetype = archetype
+	}
+	c.JSON(http.StatusOK, api)
 }
 
 func mergePut(cur *Profile, b *putBody) *Profile {

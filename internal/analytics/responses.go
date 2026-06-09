@@ -6,6 +6,7 @@ import (
 
 	"gainsai/internal/actionengine"
 	"gainsai/internal/ai"
+	"gainsai/internal/gymarchetype"
 	"gainsai/internal/profile"
 	"gainsai/internal/workout"
 )
@@ -21,8 +22,9 @@ type HomeResponse struct {
 	WeeklyVolumeKg         float64            `json:"weekly_volume_kg"`
 	WeeklyVolumeWindowDays int                `json:"weekly_volume_window_days"`
 	WorkoutConsistency     WorkoutConsistency `json:"workout_consistency"`
-	StreakDays             int                `json:"streak_days"`
+	StreakDays             int                       `json:"streak_days"`
 	TrainToday             *TrainTodayRecommendation `json:"train_today,omitempty"`
+	GymArchetype           gymarchetype.Response     `json:"gym_archetype"`
 }
 
 // SetLoadSummary is reps + weight for one top set.

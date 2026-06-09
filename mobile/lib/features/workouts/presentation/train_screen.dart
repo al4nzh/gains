@@ -4,6 +4,9 @@ import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/exercises/data/exercise_api.dart';
+import 'package:gains/features/home/data/home_api.dart';
+import 'package:gains/features/home/models/home_summary.dart';
+import 'package:gains/features/home/presentation/widgets/train_today_card.dart';
 import 'package:gains/features/routines/data/routine_api.dart';
 import 'package:gains/features/routines/models/routine.dart';
 import 'package:gains/features/recovery/utils/local_checkin_date.dart';
@@ -26,9 +29,11 @@ class TrainScreen extends StatefulWidget {
 
 class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
   WorkoutApi? _api;
+  HomeApi? _homeApi;
   List<Workout> _workouts = [];
   Map<String, String> _exerciseMuscleGroup = {};
   Map<String, String> _routineNames = {};
+  TrainTodayRecommendation? _trainToday;
   String? _error;
   bool _loading = true;
 
@@ -39,6 +44,7 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
   void onShellTabRefresh() => _load(silent: true);
 
   WorkoutApi get api => _api ??= WorkoutApi(context.read<ApiClient>());
+  HomeApi get homeApi => _homeApi ??= HomeApi(context.read<ApiClient>());
 
   @override
   void initState() {
@@ -65,11 +71,18 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
       final list = await workoutsFuture;
       final muscleMap = await muscleFuture;
       final routines = await routinesFuture;
+      HomeSummary? home;
+      try {
+        home = await homeApi.fetchHome();
+      } catch (_) {
+        home = null;
+      }
       if (!mounted) return;
       setState(() {
         _workouts = list;
         _exerciseMuscleGroup = muscleMap;
         _routineNames = {for (final r in routines) r.id: r.name};
+        _trainToday = home?.trainToday;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -164,9 +177,13 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
     if (active == null && sections.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
         children: [
-          const SizedBox(height: 48),
+          if (_trainToday != null) ...[
+            TrainTodayCard(recommendation: _trainToday!),
+            const SizedBox(height: 16),
+          ],
+          const SizedBox(height: 32),
           Text(
             'No workouts yet',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
@@ -184,6 +201,10 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
       children: [
+        if (_trainToday != null) ...[
+          TrainTodayCard(recommendation: _trainToday!),
+          const SizedBox(height: 12),
+        ],
         if (active != null) ...[
           Card(
             color: AppColors.primaryMuted.withValues(alpha: 0.15),

@@ -81,6 +81,12 @@ func (s *Service) Home(ctx context.Context, userID string) (*HomeResponse, error
 		return nil, err
 	}
 	out.TrainToday = buildTrainToday(now, out.Sharpness, active, routines, wrows)
+
+	archetype, err := s.GymArchetype(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out.GymArchetype = archetype
 	return out, nil
 }
 

@@ -278,6 +278,67 @@ func (r *Repository) queryOneCompletedBefore(ctx context.Context, query string, 
 	return &row, rows.Err()
 }
 
+// CountCompletedWorkouts returns all-time finished workout count for a user.
+func (r *Repository) CountCompletedWorkouts(ctx context.Context, userID string) (int, error) {
+	var n int
+	err := r.pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM workouts
+		WHERE user_id = $1 AND completed_at IS NOT NULL`,
+		userID,
+	).Scan(&n)
+	return n, err
+}
+
+// ArchetypeSetRow is one set with muscle group for gym archetype scoring.
+type ArchetypeSetRow struct {
+	WorkoutID    string
+	CompletedAt  time.Time
+	ExerciseName string
+	MuscleGroup  string
+	Reps         int
+	WeightKg     float64
+}
+
+// ListArchetypeSets returns sets (with muscle groups) for the user's N most recent completed workouts.
+func (r *Repository) ListArchetypeSets(ctx context.Context, userID string, workoutLimit int) ([]ArchetypeSetRow, error) {
+	if workoutLimit < 1 {
+		workoutLimit = 36
+	}
+	if workoutLimit > 60 {
+		workoutLimit = 60
+	}
+	rows, err := r.pool.Query(ctx, `
+		WITH recent AS (
+			SELECT id, completed_at
+			FROM workouts
+			WHERE user_id = $1 AND completed_at IS NOT NULL
+			ORDER BY completed_at DESC
+			LIMIT $2
+		)
+		SELECT w.id::text, w.completed_at, e.name, COALESCE(e.muscle_group, ''),
+			ws.reps::int, ws.weight_kg::float8
+		FROM recent w
+		INNER JOIN workout_sets ws ON ws.workout_id = w.id
+		INNER JOIN exercises e ON e.id = ws.exercise_id
+		WHERE ws.reps IS NOT NULL AND ws.weight_kg IS NOT NULL
+		  AND ws.reps > 0 AND ws.weight_kg > 0
+		ORDER BY w.completed_at ASC, ws.exercise_id::text, ws.set_number`,
+		userID, workoutLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ArchetypeSetRow
+	for rows.Next() {
+		var row ArchetypeSetRow
+		if err := rows.Scan(&row.WorkoutID, &row.CompletedAt, &row.ExerciseName, &row.MuscleGroup, &row.Reps, &row.WeightKg); err != nil {
+			return nil, err
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
 func (r *Repository) CountCompletedSince(ctx context.Context, userID string, since time.Time) (int, error) {
 	var n int
 	err := r.pool.QueryRow(ctx, `

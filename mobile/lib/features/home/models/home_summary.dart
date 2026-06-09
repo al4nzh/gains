@@ -1,3 +1,5 @@
+import 'package:gains/features/profile/models/gym_archetype.dart';
+
 class HomeSummary {
   const HomeSummary({
     this.strengthElo,
@@ -11,6 +13,7 @@ class HomeSummary {
     required this.workoutConsistency,
     required this.streakDays,
     this.trainToday,
+    this.gymArchetype,
   });
 
   final int? strengthElo;
@@ -24,6 +27,7 @@ class HomeSummary {
   final WorkoutConsistency workoutConsistency;
   final int streakDays;
   final TrainTodayRecommendation? trainToday;
+  final GymArchetype? gymArchetype;
 
   factory HomeSummary.fromJson(Map<String, dynamic> json) {
     return HomeSummary(
@@ -47,6 +51,9 @@ class HomeSummary {
           ? TrainTodayRecommendation.fromJson(
               json['train_today'] as Map<String, dynamic>,
             )
+          : null,
+      gymArchetype: json['gym_archetype'] is Map<String, dynamic>
+          ? GymArchetype.fromJson(json['gym_archetype'] as Map<String, dynamic>)
           : null,
     );
   }
