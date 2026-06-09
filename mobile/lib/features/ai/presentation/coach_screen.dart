@@ -40,7 +40,10 @@ class CoachScreen extends StatefulWidget {
 
 class _CoachScreenState extends State<CoachScreen> with ShellTabAutoRefresh {
   final _inputController = TextEditingController();
+  final _inputFocus = FocusNode();
   final _scrollController = ScrollController();
+  bool _hasDraft = false;
+  bool _inputFocused = false;
 
   AiApi? _api;
   String? _conversationId;
@@ -63,14 +66,37 @@ class _CoachScreenState extends State<CoachScreen> with ShellTabAutoRefresh {
   @override
   void initState() {
     super.initState();
+    _inputController.addListener(_onInputChanged);
+    _inputFocus.addListener(_onInputFocusChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
   }
 
   @override
   void dispose() {
+    _inputController.removeListener(_onInputChanged);
     _inputController.dispose();
+    _inputFocus.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onInputChanged() {
+    final has = _inputController.text.isNotEmpty;
+    if (has != _hasDraft) setState(() => _hasDraft = has);
+  }
+
+  void _onInputFocusChanged() {
+    final focused = _inputFocus.hasFocus;
+    if (focused != _inputFocused) setState(() => _inputFocused = focused);
+  }
+
+  void _unfocusInput() {
+    _inputFocus.unfocus();
+  }
+
+  void _clearDraft() {
+    _inputController.clear();
+    _unfocusInput();
   }
 
   String _aiErrorMessage(ApiException e) {
@@ -536,39 +562,43 @@ class _CoachScreenState extends State<CoachScreen> with ShellTabAutoRefresh {
               ],
             ),
           Expanded(
-            child: _initialLoading && _messages.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _messages.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.textMuted),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Ask your coach',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Training advice, routine tweaks, recovery — changes are only applied when you accept them.',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                              ),
-                            ],
+            child: GestureDetector(
+              onTap: _unfocusInput,
+              behavior: HitTestBehavior.translucent,
+              child: _initialLoading && _messages.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : _messages.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.textMuted),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Ask your coach',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Training advice, routine tweaks, recovery — changes are only applied when you accept them.',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                        itemCount: _messages.length,
+                        )
+                      : ListView.builder(
+                          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                          itemCount: _messages.length,
                         itemBuilder: (context, i) {
                           final item = _messages[i];
                           return Column(
@@ -606,6 +636,7 @@ class _CoachScreenState extends State<CoachScreen> with ShellTabAutoRefresh {
                           );
                         },
                       ),
+            ),
           ),
           if (_chatLoading)
             const LinearProgressIndicator(minHeight: 2, color: AppColors.primary),
@@ -618,6 +649,7 @@ class _CoachScreenState extends State<CoachScreen> with ShellTabAutoRefresh {
                   Expanded(
                     child: TextField(
                       controller: _inputController,
+                      focusNode: _inputFocus,
                       minLines: 1,
                       maxLines: 4,
                       textInputAction: TextInputAction.send,
@@ -629,7 +661,25 @@ class _CoachScreenState extends State<CoachScreen> with ShellTabAutoRefresh {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  if (_hasDraft) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      tooltip: 'Clear message',
+                      onPressed: _clearDraft,
+                      icon: const Icon(Icons.close),
+                      color: AppColors.textMuted,
+                    ),
+                  ],
+                  if (_inputFocused) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      tooltip: 'Hide keyboard',
+                      onPressed: _unfocusInput,
+                      icon: const Icon(Icons.keyboard_hide_outlined),
+                      color: AppColors.textMuted,
+                    ),
+                  ],
+                  const SizedBox(width: 4),
                   IconButton.filled(
                     onPressed: _chatLoading || unavailable != null ? null : _sendMessage,
                     icon: const Icon(Icons.send),

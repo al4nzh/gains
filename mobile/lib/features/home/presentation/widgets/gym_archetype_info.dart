@@ -107,7 +107,18 @@ class _GymArchetypeInfoContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Gym archetype', style: title),
+        Row(
+          children: [
+            Expanded(child: Text('Gym archetype', style: title)),
+            IconButton(
+              tooltip: 'Close',
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close),
+              color: AppColors.textMuted,
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         Text(
           'A memeable training identity based on your real workout logs — not random AI. '
@@ -181,6 +192,14 @@ class _GymArchetypeInfoContent extends StatelessWidget {
                 isSecondary: entry.id == secondaryId,
               ),
           ],
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
+          ),
         ),
       ],
     );
