@@ -89,8 +89,8 @@ class SubscriptionService extends ChangeNotifier {
   Future<bool> purchase(Package package) async {
     _lastError = null;
     try {
-      final result = await Purchases.purchasePackage(package);
-      _applyCustomerInfo(result.customerInfo);
+      final info = await Purchases.purchasePackage(package);
+      _applyCustomerInfo(info);
       await _session.refreshUser();
       notifyListeners();
       return isPremium;
