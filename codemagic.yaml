@@ -19,6 +19,8 @@ workflows:
       app_store_connect: Codemagic  # change to your API key name in Codemagic if different
 
     environment:
+      groups:
+        - revenuecat
       flutter: stable
       # Pin exact cert/profile (auto bundle match can use stale profile without Sign in with Apple)
       ios_signing:
