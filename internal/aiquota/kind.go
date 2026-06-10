@@ -10,6 +10,16 @@ const (
 	KindPhysiqueScan
 )
 
+// RequiresPremium is true for billable OpenAI features (freemium paywall).
+func (k Kind) RequiresPremium() bool {
+	switch k {
+	case KindCoachMessage, KindWorkoutAnalysis, KindRoutineGeneration, KindPhysiqueScan:
+		return true
+	default:
+		return false
+	}
+}
+
 func (k Kind) column() string {
 	switch k {
 	case KindCoachMessage:

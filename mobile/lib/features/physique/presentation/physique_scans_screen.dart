@@ -7,6 +7,9 @@ import 'package:gains/features/physique/data/physique_api.dart';
 import 'package:gains/features/physique/models/physique_scan.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:gains/features/physique/presentation/physique_scan_widgets.dart';
+import 'package:gains/features/subscription/presentation/premium_locked_view.dart';
+import 'package:gains/features/subscription/services/subscription_service.dart';
+import 'package:gains/features/subscription/utils/premium_errors.dart';
 import 'package:provider/provider.dart';
 
 class PhysiqueScansScreen extends StatefulWidget {
@@ -106,6 +109,10 @@ class _PhysiqueScansScreenState extends State<PhysiqueScansScreen> {
       if (!mounted) return;
       Navigator.of(context).pop();
       setState(() => _uploading = false);
+      if (e.isPremiumRequired) {
+        await showPaywallForApiError(context, e);
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_scanErrorMessage(e))),
       );
@@ -150,6 +157,24 @@ class _PhysiqueScansScreenState extends State<PhysiqueScansScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!context.watch<SubscriptionService>().isPremium) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Physique scans'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        body: const PremiumLockedView(
+          title: 'Physique scans are Premium',
+          description: 'Upload progress photos for AI body-fat estimates. Your training log and progress charts stay free.',
+          icon: Icons.camera_alt_outlined,
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(

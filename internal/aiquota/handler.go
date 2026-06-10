@@ -11,10 +11,16 @@ import (
 func WriteError(c *gin.Context, err error) bool {
 	switch {
 	case errors.Is(err, ErrPremiumRequired):
-		c.JSON(http.StatusForbidden, gin.H{"error": "premium subscription required for AI features"})
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "premium subscription required for AI features",
+			"code":  "premium_required",
+		})
 		return true
 	case errors.Is(err, ErrDailyQuotaExceeded):
-		c.JSON(http.StatusTooManyRequests, gin.H{"error": "daily AI limit reached — try again tomorrow"})
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"error": "daily AI limit reached — try again tomorrow",
+			"code":  "daily_quota_exceeded",
+		})
 		return true
 	default:
 		return false

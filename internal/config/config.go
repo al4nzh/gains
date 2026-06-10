@@ -68,6 +68,9 @@ type Config struct {
 	ResendAPIKey     string
 	EmailFrom        string
 	AppName          string
+
+	RevenueCatWebhookSecret   string
+	RevenueCatEntitlementID   string
 }
 
 func Load() (*Config, error) {
@@ -147,6 +150,9 @@ func Load() (*Config, error) {
 	cfg.ResendAPIKey = strings.TrimSpace(os.Getenv("RESEND_API_KEY"))
 	cfg.EmailFrom = strings.TrimSpace(os.Getenv("EMAIL_FROM"))
 	cfg.AppName = getEnv("APP_NAME", "Gains")
+
+	cfg.RevenueCatWebhookSecret = strings.TrimSpace(os.Getenv("REVENUECAT_WEBHOOK_SECRET"))
+	cfg.RevenueCatEntitlementID = getEnv("REVENUECAT_ENTITLEMENT_ID", "premium")
 
 	if err := cfg.validate(); err != nil {
 		return nil, err

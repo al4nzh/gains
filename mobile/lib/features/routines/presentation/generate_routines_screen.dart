@@ -10,6 +10,9 @@ import 'package:gains/features/ai/models/routine_draft.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/routines/presentation/routine_formatters.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
+import 'package:gains/features/subscription/presentation/premium_locked_view.dart';
+import 'package:gains/features/subscription/services/subscription_service.dart';
+import 'package:gains/features/subscription/utils/premium_errors.dart';
 import 'package:provider/provider.dart';
 
 enum _GeneratePhase { prompt, loading, clarification, preview, confirming }
@@ -81,6 +84,10 @@ class _GenerateRoutinesScreenState extends State<GenerateRoutinesScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _phase = _GeneratePhase.prompt);
+      if (e.isPremiumRequired) {
+        await showPaywallForApiError(context, e);
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_aiErrorMessage(e))));
     } catch (_) {
       if (!mounted) return;
@@ -135,6 +142,25 @@ class _GenerateRoutinesScreenState extends State<GenerateRoutinesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!context.watch<SubscriptionService>().isPremium) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Generate with AI'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        body: const PremiumLockedView(
+          title: 'AI routine generator is Premium',
+          description:
+              'Describe your goals and get a full program draft. Building routines manually from templates stays free.',
+          icon: Icons.auto_awesome_outlined,
+        ),
+      );
+    }
+
     final needsProfile = context.watch<AuthSession>().needsOnboarding;
     final loading = _phase == _GeneratePhase.loading || _phase == _GeneratePhase.confirming;
 

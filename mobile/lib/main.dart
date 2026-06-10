@@ -8,6 +8,7 @@ import 'package:gains/features/auth/data/auth_api.dart';
 import 'package:gains/features/auth/data/token_storage.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/profile/data/profile_api.dart';
+import 'package:gains/features/subscription/services/subscription_service.dart';
 import 'package:provider/provider.dart';
 
 Future<void> main() async {
@@ -25,7 +26,10 @@ Future<void> main() async {
     authApi: AuthApi(apiClient),
     profileApi: ProfileApi(apiClient),
   );
+  final subscriptionService = SubscriptionService(authSession);
   final bodyUnits = await BodyUnitsPreference.load();
+  await authSession.bootstrap();
+  await subscriptionService.bootstrap();
 
   runApp(
     MultiProvider(
@@ -33,6 +37,7 @@ Future<void> main() async {
         ChangeNotifierProvider<ApiClient>.value(value: apiClient),
         ChangeNotifierProvider<BodyUnitsPreference>.value(value: bodyUnits),
         ChangeNotifierProvider<AuthSession>.value(value: authSession),
+        ChangeNotifierProvider<SubscriptionService>.value(value: subscriptionService),
       ],
       child: GainsApp(authSession: authSession),
     ),

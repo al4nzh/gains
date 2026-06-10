@@ -2,11 +2,13 @@ class ApiException implements Exception {
   ApiException(
     this.message, {
     this.statusCode,
+    this.code,
     this.activeWorkoutId,
   });
 
   final String message;
   final int? statusCode;
+  final String? code;
 
   /// Set when `POST /workouts` returns 409 (one active session per user).
   final String? activeWorkoutId;
@@ -23,6 +25,7 @@ class ApiException implements Exception {
       return ApiException(
         data['error'].toString(),
         statusCode: statusCode,
+        code: data['code']?.toString(),
         activeWorkoutId: activeId?.toString(),
       );
     }

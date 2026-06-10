@@ -5,6 +5,7 @@
 #   API_BASE_URL          — HTTPS prod API (required for TestFlight on iPhone)
 #   GOOGLE_SERVER_CLIENT_ID
 #   GOOGLE_IOS_CLIENT_ID
+#   REVENUECAT_IOS_API_KEY  — RevenueCat public iOS SDK key (enables in-app purchases)
 # Apple: connect Developer Portal integration (name must match integrations.app_store_connect below)
 
 workflows:
@@ -48,7 +49,8 @@ workflows:
             --dart-define=GOOGLE_SERVER_CLIENT_ID=$GOOGLE_SERVER_CLIENT_ID \
             --dart-define=GOOGLE_IOS_CLIENT_ID=$GOOGLE_IOS_CLIENT_ID \
             --dart-define=PRIVACY_POLICY_URL=$PRIVACY_POLICY_URL \
-            --dart-define=TERMS_URL=$TERMS_URL
+            --dart-define=TERMS_URL=$TERMS_URL \
+            --dart-define=REVENUECAT_IOS_API_KEY=$REVENUECAT_IOS_API_KEY
 
     artifacts:
       - build/ios/ipa/*.ipa

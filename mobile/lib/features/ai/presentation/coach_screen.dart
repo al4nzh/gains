@@ -15,6 +15,9 @@ import 'package:gains/features/ai/presentation/widgets/coach_no_actions_hint.dar
 import 'package:gains/features/home/presentation/widgets/home_formatters.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
+import 'package:gains/features/subscription/presentation/premium_locked_view.dart';
+import 'package:gains/features/subscription/services/subscription_service.dart';
+import 'package:gains/features/subscription/utils/premium_errors.dart';
 import 'package:provider/provider.dart';
 
 class _DisplayMessage {
@@ -390,6 +393,10 @@ class _CoachScreenState extends State<CoachScreen> with ShellTabAutoRefresh {
           // keep user message
         }
       });
+      if (e.isPremiumRequired) {
+        await showPaywallForApiError(context, e);
+        return;
+      }
       final msg = _aiErrorMessage(e);
       if (e.statusCode == 503) {
         setState(() => _coachUnavailable = msg);
@@ -525,6 +532,19 @@ class _CoachScreenState extends State<CoachScreen> with ShellTabAutoRefresh {
 
   @override
   Widget build(BuildContext context) {
+    if (!context.watch<SubscriptionService>().isPremium) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Coach')),
+        body: const PremiumLockedView(
+          title: 'AI Coach is Premium',
+          description:
+              'Chat with your coach, review suggested changes, and get personalized advice. Workout logging stays free.',
+          icon: Icons.smart_toy_outlined,
+        ),
+      );
+    }
+
     final unavailable = _coachUnavailable;
 
     return Scaffold(

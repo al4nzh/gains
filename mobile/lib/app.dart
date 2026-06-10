@@ -24,7 +24,6 @@ class _GainsAppState extends State<GainsApp> {
     super.initState();
     _appRouter = AppRouter(widget.authSession);
     _shellTabRefresh = ShellTabRefresh();
-    widget.authSession.bootstrap();
   }
 
   @override

@@ -4,6 +4,8 @@ import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/core/utils/support_contact.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
+import 'package:gains/features/subscription/presentation/paywall_sheet.dart';
+import 'package:gains/features/subscription/services/subscription_service.dart';
 import 'package:provider/provider.dart';
 
 class ProfileMenuScreen extends StatelessWidget {
@@ -14,6 +16,7 @@ class ProfileMenuScreen extends StatelessWidget {
     final session = context.watch<AuthSession>();
     final user = session.user;
     final profile = session.profile;
+    final isPremium = context.watch<SubscriptionService>().isPremium;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -38,6 +41,18 @@ class ProfileMenuScreen extends StatelessWidget {
               ),
             ),
           const Divider(height: 1),
+          ListTile(
+            leading: Icon(
+              isPremium ? Icons.workspace_premium : Icons.workspace_premium_outlined,
+              color: isPremium ? AppColors.primary : null,
+            ),
+            title: Text(isPremium ? 'Gains Premium' : 'Upgrade to Premium'),
+            subtitle: Text(
+              isPremium ? 'AI coach and advanced tools unlocked' : 'Unlock AI coach, scans, and more',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            onTap: () => showPaywallSheet(context),
+          ),
           ListTile(
             leading: const Icon(Icons.person_outline),
             title: const Text('Edit profile'),

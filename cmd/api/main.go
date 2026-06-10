@@ -27,6 +27,7 @@ import (
 	"gainsai/internal/profile"
 	"gainsai/internal/recovery"
 	"gainsai/internal/routine"
+	"gainsai/internal/subscription"
 	"gainsai/internal/user"
 	"gainsai/internal/workout"
 )
@@ -163,6 +164,10 @@ func main() {
 	physiqueSvc := physique.NewService(physiqueRepo, cfg, aiQuotaSvc)
 	physiqueHandler := physique.NewHandler(physiqueSvc)
 	physiqueHandler.RegisterRoutes(r, requireAppAccess, physiqueLimiter.Middleware())
+
+	subscriptionHandler := subscription.NewHandler(userRepo)
+	subscriptionHandler.RegisterRoutes(r, requireAppAccess)
+	subscription.NewWebhookHandler(userRepo, cfg.RevenueCatWebhookSecret, cfg.RevenueCatEntitlementID).RegisterRoutes(r)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

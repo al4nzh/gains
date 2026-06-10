@@ -18,16 +18,14 @@ func NewService(repo *Repository, users *user.Repository, cfg *config.Config) *S
 	return &Service{repo: repo, users: users, cfg: cfg}
 }
 
-// Consume checks premium access (when enabled) and increments today's usage if under the daily limit.
+// Consume checks premium access for billable features and increments today's usage if under the daily limit.
 func (s *Service) Consume(ctx context.Context, userID string, kind Kind) error {
-	if s.cfg.AIRequirePremium {
-		u, err := s.users.GetByID(ctx, userID)
-		if err != nil {
-			return err
-		}
-		if !u.IsPremium {
-			return ErrPremiumRequired
-		}
+	u, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if kind.RequiresPremium() && !u.IsPremium {
+		return ErrPremiumRequired
 	}
 
 	limit := s.limitFor(kind)

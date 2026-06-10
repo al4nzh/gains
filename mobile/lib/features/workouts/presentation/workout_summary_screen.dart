@@ -16,6 +16,9 @@ import 'package:gains/features/workouts/models/finish_stats.dart';
 import 'package:gains/features/workouts/models/workout.dart';
 import 'package:gains/features/workouts/presentation/muscle_group_mapping.dart';
 import 'package:gains/features/workouts/presentation/widgets/session_muscles_diagram.dart';
+import 'package:gains/features/subscription/presentation/paywall_sheet.dart';
+import 'package:gains/features/subscription/services/subscription_service.dart';
+import 'package:gains/features/subscription/utils/premium_errors.dart';
 import 'package:gains/features/workouts/presentation/widgets/workout_share_card.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
@@ -113,6 +116,10 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
 
   Future<void> _analyzeWithAi() async {
     if (_analyzing) return;
+    if (!context.read<SubscriptionService>().isPremium) {
+      await showPaywallSheet(context);
+      return;
+    }
 
     setState(() {
       _analyzing = true;
@@ -133,6 +140,10 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _analyzing = false);
+      if (e.isPremiumRequired) {
+        await showPaywallForApiError(context, e);
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_aiErrorMessage(e))),
       );
