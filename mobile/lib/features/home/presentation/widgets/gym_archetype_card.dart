@@ -47,6 +47,13 @@ class _GymArchetypeCardState extends State<GymArchetypeCard> {
     final theme = Theme.of(context);
 
     if (!widget.isPremium) {
+      final done = archetype.workoutsCompleted;
+      final need = archetype.workoutsRequired;
+      final progressText = done < need
+          ? (need - done == 1
+              ? 'Finish 1 more workout, then unlock with Premium.'
+              : 'Finish ${need - done} more workouts, then unlock with Premium.')
+          : 'You have enough workouts — unlock your identity with Premium.';
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -62,7 +69,7 @@ class _GymArchetypeCardState extends State<GymArchetypeCard> {
                     Text('Gains Identity', style: theme.textTheme.titleSmall),
                     const SizedBox(height: 4),
                     Text(
-                      'Unlock your gym archetype and shareable identity card with Premium.',
+                      progressText,
                       style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 10),
@@ -110,9 +117,11 @@ class _GymArchetypeCardState extends State<GymArchetypeCard> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      remaining == 1
-                          ? 'Finish 1 more workout to unlock your Gains Identity.'
-                          : 'Finish $remaining more workouts to unlock your Gains Identity.',
+                      remaining > 0
+                          ? (remaining == 1
+                              ? 'Finish 1 more workout to unlock your Gains Identity.'
+                              : 'Finish $remaining more workouts to unlock your Gains Identity.')
+                          : 'Log a workout with exercises and sets — we need a bit more data to reveal your identity.',
                       style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                     ),
                   ],

@@ -15,6 +15,8 @@ class SubscriptionService extends ChangeNotifier {
   bool _configured = false;
   bool _storePremium = false;
   bool _loadingOfferings = false;
+  bool _syncing = false;
+  String? _lastSyncUserId;
   Offerings? _offerings;
   String? _lastError;
 
@@ -37,10 +39,14 @@ class SubscriptionService extends ChangeNotifier {
   void _onSessionChanged() {
     final userId = _session.user?.id;
     if (userId == null) {
-      _storePremium = false;
-      notifyListeners();
+      if (_storePremium || _lastSyncUserId != null) {
+        _storePremium = false;
+        _lastSyncUserId = null;
+        notifyListeners();
+      }
       return;
     }
+    if (_syncing || userId == _lastSyncUserId) return;
     _syncForUser(userId);
   }
 
@@ -61,19 +67,26 @@ class SubscriptionService extends ChangeNotifier {
 
   Future<void> _syncForUser(String userId) async {
     if (!SubscriptionConfig.isStoreConfigured) {
-      notifyListeners();
       return;
     }
+    if (_syncing) return;
+    _syncing = true;
+    final wasPremium = isPremium;
     try {
       await _ensureConfigured();
       await Purchases.logIn(userId);
       final info = await Purchases.getCustomerInfo();
       _applyCustomerInfo(info);
       await _session.refreshUser();
+      _lastSyncUserId = userId;
     } catch (e) {
       if (kDebugMode) debugPrint('SubscriptionService sync: $e');
+    } finally {
+      _syncing = false;
     }
-    notifyListeners();
+    if (isPremium != wasPremium) {
+      notifyListeners();
+    }
   }
 
   Future<void> loadOfferings() async {

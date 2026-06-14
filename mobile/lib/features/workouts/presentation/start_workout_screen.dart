@@ -288,7 +288,7 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     final recs = _adaptive?.recommendations ?? const <AdaptiveRecommendation>[];
-    final isPremium = context.watch<SubscriptionService>().isPremium;
+    final isPremium = context.select<SubscriptionService, bool>((s) => s.isPremium);
     final showAdaptiveCard = isPremium && !_ignoredAdaptive && !_loadingAdaptive && _selectedRoutineId != null && recs.isNotEmpty;
     final showAdaptivePremiumTeaser = !isPremium && _selectedRoutineId != null && !_loadingAdaptive;
 

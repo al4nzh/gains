@@ -23,8 +23,6 @@ import 'package:gains/features/recovery/presentation/widgets/daily_readiness_car
 import 'package:gains/features/recovery/utils/local_checkin_date.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
-import 'package:gains/features/subscription/presentation/premium_teaser_card.dart';
-import 'package:gains/features/subscription/services/subscription_service.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -220,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
 
     final data = _data!;
     final showReadiness = _shouldShowReadinessCard;
-    final isPremium = context.watch<SubscriptionService>().isPremium;
+    final isPremium = context.select<AuthSession, bool>((s) => s.user?.isPremium ?? false);
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),

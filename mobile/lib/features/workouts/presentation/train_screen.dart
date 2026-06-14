@@ -175,7 +175,7 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
     final active = _inProgress;
     final sections = groupCompletedWorkoutsByDate(_completed);
     final todayKey = LocalCheckinDate.today();
-    final isPremium = context.watch<SubscriptionService>().isPremium;
+    final isPremium = context.select<SubscriptionService, bool>((s) => s.isPremium);
 
     Widget? trainNextHeader() {
       if (isPremium && _trainToday != null) {
