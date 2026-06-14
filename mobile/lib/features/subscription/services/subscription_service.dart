@@ -79,6 +79,9 @@ class SubscriptionService extends ChangeNotifier {
       _applyCustomerInfo(info);
       await _session.refreshUser();
       _lastSyncUserId = userId;
+      if (_storePremium && !(_session.user?.isPremium ?? false)) {
+        _retryServerPremiumSync();
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('SubscriptionService sync: $e');
     } finally {
@@ -161,11 +164,13 @@ class SubscriptionService extends ChangeNotifier {
 
   /// RevenueCat webhook can lag a few seconds behind the App Store receipt.
   void _retryServerPremiumSync() {
-    Future<void>.delayed(const Duration(seconds: 3), () async {
-      if (_session.user?.isPremium == true) return;
-      await _session.refreshUser();
-      if (isPremium) notifyListeners();
-    });
+    for (final delay in const [3, 10, 30]) {
+      Future<void>.delayed(Duration(seconds: delay), () async {
+        if (_session.user?.isPremium == true) return;
+        await _session.refreshUser();
+        if (isPremium) notifyListeners();
+      });
+    }
   }
 
   @override

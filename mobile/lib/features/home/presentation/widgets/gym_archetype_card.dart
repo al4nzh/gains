@@ -108,7 +108,8 @@ class _GymArchetypeCardState extends State<GymArchetypeCard> {
                     Text('Gains Identity', style: theme.textTheme.titleSmall),
                     const SizedBox(height: 4),
                     Text(
-                      'Activating Premium… pull down to refresh Home in a few seconds.',
+                      'Activating Premium on this account… pull to refresh Home. '
+                      'If this stays, tap Restore purchases or log into the account you subscribed with.',
                       style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                     ),
                   ],
