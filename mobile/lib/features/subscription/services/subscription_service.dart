@@ -29,6 +29,9 @@ class SubscriptionService extends ChangeNotifier {
     ('Workout analysis', 'Post-session AI insights'),
     ('Routine generator', 'Build programs from a prompt'),
     ('Physique scans', 'AI body-fat estimates from photos'),
+    ('Gains Identity', 'Gym archetype and shareable identity card'),
+    ('AI suggestions', 'Smart adjustments before each workout'),
+    ('Train next', 'Daily routine pick based on your training history'),
   ];
 
   void _onSessionChanged() {
@@ -47,19 +50,22 @@ class SubscriptionService extends ChangeNotifier {
     await _syncForUser(userId);
   }
 
+  Future<void> _ensureConfigured() async {
+    if (_configured) return;
+    final apiKey = SubscriptionConfig.platformApiKey;
+    if (apiKey == null) return;
+    await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.warn);
+    await Purchases.configure(PurchasesConfiguration(apiKey));
+    _configured = true;
+  }
+
   Future<void> _syncForUser(String userId) async {
     if (!SubscriptionConfig.isStoreConfigured) {
       notifyListeners();
       return;
     }
     try {
-      if (!_configured) {
-        final apiKey = SubscriptionConfig.platformApiKey;
-        if (apiKey == null) return;
-        await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.warn);
-        await Purchases.configure(PurchasesConfiguration(apiKey));
-        _configured = true;
-      }
+      await _ensureConfigured();
       await Purchases.logIn(userId);
       final info = await Purchases.getCustomerInfo();
       _applyCustomerInfo(info);
@@ -76,10 +82,20 @@ class SubscriptionService extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
     try {
+      await _ensureConfigured();
       _offerings = await Purchases.getOfferings();
+      final packages = _offerings?.current?.availablePackages ?? const <Package>[];
+      if (packages.isEmpty) {
+        _lastError = _offerings?.current == null
+            ? 'No current offering in RevenueCat (set default offering as Current)'
+            : 'No packages on current offering (add monthly/yearly in RevenueCat)';
+      }
     } catch (e) {
       _lastError = 'Could not load subscription options';
-      if (kDebugMode) debugPrint('Offerings: $e');
+      if (kDebugMode) {
+        debugPrint('Offerings: $e');
+        _lastError = 'Could not load subscription options: $e';
+      }
     } finally {
       _loadingOfferings = false;
       notifyListeners();

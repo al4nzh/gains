@@ -3,16 +3,19 @@ import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/features/home/presentation/widgets/gym_archetype_info.dart';
 import 'package:gains/features/home/presentation/widgets/share_gains_identity.dart';
 import 'package:gains/features/profile/models/gym_archetype.dart';
+import 'package:gains/features/subscription/presentation/paywall_sheet.dart';
 
 class GymArchetypeCard extends StatefulWidget {
   const GymArchetypeCard({
     super.key,
     required this.archetype,
+    required this.isPremium,
     this.strengthElo,
     this.strengthEloRank,
   });
 
   final GymArchetype archetype;
+  final bool isPremium;
   final int? strengthElo;
   final String? strengthEloRank;
 
@@ -42,6 +45,39 @@ class _GymArchetypeCardState extends State<GymArchetypeCard> {
   Widget build(BuildContext context) {
     final archetype = widget.archetype;
     final theme = Theme.of(context);
+
+    if (!widget.isPremium) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.workspace_premium_outlined, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Gains Identity', style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Unlock your gym archetype and shareable identity card with Premium.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: () => showPaywallSheet(context),
+                      child: const Text('Upgrade to Premium'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (!archetype.unlocked) {
       final remaining = (archetype.workoutsRequired - archetype.workoutsCompleted).clamp(0, 99);

@@ -18,6 +18,8 @@ import 'package:gains/features/workouts/presentation/widgets/active_workout_dial
 import 'package:gains/features/workouts/presentation/widgets/train_history_tile.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
+import 'package:gains/features/subscription/presentation/premium_teaser_card.dart';
+import 'package:gains/features/subscription/services/subscription_service.dart';
 import 'package:provider/provider.dart';
 
 class TrainScreen extends StatefulWidget {
@@ -173,14 +175,31 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
     final active = _inProgress;
     final sections = groupCompletedWorkoutsByDate(_completed);
     final todayKey = LocalCheckinDate.today();
+    final isPremium = context.watch<SubscriptionService>().isPremium;
+
+    Widget? trainNextHeader() {
+      if (isPremium && _trainToday != null) {
+        return TrainTodayCard(recommendation: _trainToday!);
+      }
+      if (!isPremium) {
+        return const PremiumTeaserCard(
+          title: 'Train next',
+          description: 'Get a smart daily routine pick based on recovery, history, and your program.',
+          icon: Icons.fitness_center_outlined,
+        );
+      }
+      return null;
+    }
+
+    final trainNext = trainNextHeader();
 
     if (active == null && sections.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
         children: [
-          if (_trainToday != null) ...[
-            TrainTodayCard(recommendation: _trainToday!),
+          if (trainNext != null) ...[
+            trainNext,
             const SizedBox(height: 16),
           ],
           const SizedBox(height: 32),
@@ -201,8 +220,8 @@ class _TrainScreenState extends State<TrainScreen> with ShellTabAutoRefresh {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
       children: [
-        if (_trainToday != null) ...[
-          TrainTodayCard(recommendation: _trainToday!),
+        if (trainNext != null) ...[
+          trainNext,
           const SizedBox(height: 12),
         ],
         if (active != null) ...[

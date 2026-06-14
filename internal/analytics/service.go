@@ -9,6 +9,7 @@ import (
 	"gainsai/internal/profile"
 	"gainsai/internal/recovery"
 	"gainsai/internal/routine"
+	"gainsai/internal/user"
 	"gainsai/internal/workout"
 )
 
@@ -19,10 +20,11 @@ type Service struct {
 	routineRepo *routine.Repository
 	workoutRepo *workout.Repository
 	insightRepo *ai.Repository
+	users       *user.Repository
 }
 
-func NewService(repo *Repository, rec *recovery.Repository, prof *profile.Repository, routineRepo *routine.Repository, workoutRepo *workout.Repository, insightRepo *ai.Repository) *Service {
-	return &Service{repo: repo, recovery: rec, profile: prof, routineRepo: routineRepo, workoutRepo: workoutRepo, insightRepo: insightRepo}
+func NewService(repo *Repository, rec *recovery.Repository, prof *profile.Repository, routineRepo *routine.Repository, workoutRepo *workout.Repository, insightRepo *ai.Repository, users *user.Repository) *Service {
+	return &Service{repo: repo, recovery: rec, profile: prof, routineRepo: routineRepo, workoutRepo: workoutRepo, insightRepo: insightRepo, users: users}
 }
 
 // sharpnessForHome always returns a SharpnessOverview for GET /home: real score when 7d check-ins

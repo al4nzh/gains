@@ -80,7 +80,17 @@ func (s *Service) Home(ctx context.Context, userID string) (*HomeResponse, error
 	if err != nil {
 		return nil, err
 	}
-	out.TrainToday = buildTrainToday(now, out.Sharpness, active, routines, wrows)
+	if s.users != nil {
+		u, err := s.users.GetByID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if u.IsPremium {
+			out.TrainToday = buildTrainToday(now, out.Sharpness, active, routines, wrows)
+		}
+	} else {
+		out.TrainToday = buildTrainToday(now, out.Sharpness, active, routines, wrows)
+	}
 
 	archetype, err := s.GymArchetype(ctx, userID)
 	if err != nil {

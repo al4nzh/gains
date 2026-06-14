@@ -140,9 +140,9 @@ func main() {
 	adaptiveSvc := adaptiverecommendations.NewService(
 		adaptiveRepo, routineRepo, workoutRepo, recoveryRepo, profileRepo, analyticsRepo, exerciseRepo,
 	)
-	adaptiveHandler := adaptiverecommendations.NewHandler(adaptiveSvc)
+	adaptiveHandler := adaptiverecommendations.NewHandler(adaptiveSvc, userRepo)
 	adaptiveHandler.RegisterRoutes(r, requireAppAccess, workoutLimiter.Middleware())
-	analyticsSvc := analytics.NewService(analyticsRepo, recoveryRepo, profileRepo, routineRepo, workoutRepo, aiRepo)
+	analyticsSvc := analytics.NewService(analyticsRepo, recoveryRepo, profileRepo, routineRepo, workoutRepo, aiRepo, userRepo)
 	analyticsHandler := analytics.NewHandler(analyticsSvc)
 	analyticsHandler.RegisterRoutes(r, requireAppAccess, analyticsLimiter.Middleware())
 

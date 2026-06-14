@@ -15,6 +15,9 @@ import 'package:gains/features/workouts/data/workout_api.dart';
 import 'package:gains/features/workouts/models/workout.dart';
 import 'package:gains/features/workouts/presentation/widgets/active_workout_dialogs.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
+import 'package:gains/features/subscription/presentation/premium_teaser_card.dart';
+import 'package:gains/features/subscription/services/subscription_service.dart';
+import 'package:gains/features/subscription/utils/premium_errors.dart';
 import 'package:provider/provider.dart';
 
 class StartWorkoutScreen extends StatefulWidget {
@@ -99,6 +102,7 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
 
   Future<void> _loadRoutinePreview() async {
     final routineId = _selectedRoutineId;
+    final isPremium = context.read<SubscriptionService>().isPremium;
     if (routineId == null) {
       if (!mounted) return;
       setState(() {
@@ -115,7 +119,7 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
 
     setState(() {
       _loadingPreview = true;
-      _loadingAdaptive = true;
+      _loadingAdaptive = isPremium;
       _adaptiveError = null;
       _adaptive = null;
       _ignoredAdaptive = false;
@@ -132,12 +136,18 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
 
       AdaptiveRecommendationsResponse? adaptive;
       String? adaptiveError;
-      try {
-        adaptive = await _adaptiveApi.getForRoutine(routineId);
-      } on ApiException catch (e) {
-        adaptiveError = e.message;
-      } catch (_) {
-        adaptiveError = 'Could not load recommendations';
+      if (isPremium) {
+        try {
+          adaptive = await _adaptiveApi.getForRoutine(routineId);
+        } on ApiException catch (e) {
+          if (e.isPremiumRequired) {
+            adaptiveError = 'premium_locked';
+          } else {
+            adaptiveError = e.message;
+          }
+        } catch (_) {
+          adaptiveError = 'Could not load recommendations';
+        }
       }
 
       if (!mounted) return;
@@ -278,7 +288,9 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     final recs = _adaptive?.recommendations ?? const <AdaptiveRecommendation>[];
-    final showAdaptiveCard = !_ignoredAdaptive && !_loadingAdaptive && _selectedRoutineId != null && recs.isNotEmpty;
+    final isPremium = context.watch<SubscriptionService>().isPremium;
+    final showAdaptiveCard = isPremium && !_ignoredAdaptive && !_loadingAdaptive && _selectedRoutineId != null && recs.isNotEmpty;
+    final showAdaptivePremiumTeaser = !isPremium && _selectedRoutineId != null && !_loadingAdaptive;
 
     return PopScope(
       onPopInvokedWithResult: (didPop, _) {
@@ -303,7 +315,13 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
             const SizedBox(height: 12),
             if (_loadingAdaptive)
               const LinearProgressIndicator(minHeight: 2)
-            else if (_adaptiveError != null)
+            else if (showAdaptivePremiumTeaser)
+              const PremiumTeaserCard(
+                title: 'AI workout suggestions',
+                description: 'Get smart set and exercise adjustments before each session with Premium.',
+                icon: Icons.auto_awesome_outlined,
+              )
+            else if (_adaptiveError != null && _adaptiveError != 'premium_locked')
               Text(_adaptiveError!, style: const TextStyle(color: AppColors.textMuted))
             else if (showAdaptiveCard)
               _AdaptiveAdjustmentCard(

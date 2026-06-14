@@ -45,6 +45,9 @@ func (h *Handler) status(c *gin.Context) {
 			"workout_analysis",
 			"routine_generation",
 			"physique_scans",
+			"gym_archetype",
+			"adaptive_recommendations",
+			"train_next",
 		},
 		FreeFeatures: []string{
 			"workouts",
@@ -52,9 +55,7 @@ func (h *Handler) status(c *gin.Context) {
 			"templates",
 			"progress",
 			"strength_elo",
-			"gym_archetype",
 			"recovery_log",
-			"adaptive_recommendations",
 		},
 	})
 }

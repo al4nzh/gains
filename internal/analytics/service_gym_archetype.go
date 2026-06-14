@@ -19,6 +19,20 @@ func (s *Service) GymArchetype(ctx context.Context, userID string) (gymarchetype
 		return gymarchetype.Response{}, err
 	}
 
+	if s.users != nil {
+		u, err := s.users.GetByID(ctx, userID)
+		if err != nil {
+			return gymarchetype.Response{}, err
+		}
+		if !u.IsPremium {
+			return gymarchetype.Response{
+				Unlocked:          false,
+				WorkoutsCompleted: total,
+				WorkoutsRequired:  gymarchetype.MinWorkouts,
+			}, nil
+		}
+	}
+
 	rows, err := s.repo.ListCompletedWorkoutsRecent(ctx, userID, gymArchetypeAnalysisWorkouts)
 	if err != nil {
 		return gymarchetype.Response{}, err

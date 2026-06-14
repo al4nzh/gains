@@ -7,15 +7,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"gainsai/internal/aiquota"
 	"gainsai/internal/auth"
+	"gainsai/internal/subscription"
+	"gainsai/internal/user"
 )
 
 type Handler struct {
-	svc *Service
+	svc   *Service
+	users *user.Repository
 }
 
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *Service, users *user.Repository) *Handler {
+	return &Handler{svc: svc, users: users}
 }
 
 func (h *Handler) RegisterRoutes(r *gin.Engine, requireAuth, limiter gin.HandlerFunc) {
@@ -28,6 +32,13 @@ func (h *Handler) forRoutine(c *gin.Context) {
 	userID, ok := auth.UserIDFromContext(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+		return
+	}
+	if err := subscription.RequirePremium(c.Request.Context(), h.users, userID); err != nil {
+		if aiquota.WriteError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
 	rid := strings.TrimSpace(c.Param("routineId"))
@@ -51,6 +62,13 @@ func (h *Handler) apply(c *gin.Context) {
 	userID, ok := auth.UserIDFromContext(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+		return
+	}
+	if err := subscription.RequirePremium(c.Request.Context(), h.users, userID); err != nil {
+		if aiquota.WriteError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
 	var body applyBody
