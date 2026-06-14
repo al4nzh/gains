@@ -2,15 +2,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:gains/core/config/subscription_config.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
+import 'package:gains/features/subscription/data/subscription_api.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 /// Premium access via server flag + RevenueCat entitlements.
 class SubscriptionService extends ChangeNotifier {
-  SubscriptionService(this._session) {
+  SubscriptionService(this._session, {SubscriptionApi? subscriptionApi})
+      : _subscriptionApi = subscriptionApi {
     _session.addListener(_onSessionChanged);
   }
 
   final AuthSession _session;
+  final SubscriptionApi? _subscriptionApi;
 
   bool _configured = false;
   bool _storePremium = false;
@@ -78,10 +81,10 @@ class SubscriptionService extends ChangeNotifier {
       final info = await Purchases.getCustomerInfo();
       _applyCustomerInfo(info);
       await _session.refreshUser();
-      _lastSyncUserId = userId;
       if (_storePremium && !(_session.user?.isPremium ?? false)) {
-        _retryServerPremiumSync();
+        await _syncServerPremium();
       }
+      _lastSyncUserId = userId;
     } catch (e) {
       if (kDebugMode) debugPrint('SubscriptionService sync: $e');
     } finally {
@@ -126,6 +129,7 @@ class SubscriptionService extends ChangeNotifier {
       _lastSyncUserId = null;
       await _session.refreshUser();
       notifyListeners();
+      await _syncServerPremium();
       _retryServerPremiumSync();
       return isPremium;
     } on PlatformException catch (e) {
@@ -149,6 +153,7 @@ class SubscriptionService extends ChangeNotifier {
       _lastSyncUserId = null;
       await _session.refreshUser();
       notifyListeners();
+      await _syncServerPremium();
       _retryServerPremiumSync();
       return isPremium;
     } catch (_) {
@@ -162,13 +167,23 @@ class SubscriptionService extends ChangeNotifier {
     _storePremium = info.entitlements.active.containsKey(SubscriptionConfig.entitlementId);
   }
 
-  /// RevenueCat webhook can lag a few seconds behind the App Store receipt.
+  /// Ask Gains API to verify entitlement with RevenueCat and set users.is_premium.
+  Future<void> _syncServerPremium() async {
+    if (_subscriptionApi == null) return;
+    try {
+      await _subscriptionApi!.sync();
+      await _session.refreshUser();
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) debugPrint('SubscriptionService server sync: $e');
+    }
+  }
+
   void _retryServerPremiumSync() {
     for (final delay in const [3, 10, 30]) {
       Future<void>.delayed(Duration(seconds: delay), () async {
         if (_session.user?.isPremium == true) return;
-        await _session.refreshUser();
-        if (isPremium) notifyListeners();
+        await _syncServerPremium();
       });
     }
   }

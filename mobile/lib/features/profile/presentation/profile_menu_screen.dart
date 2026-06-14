@@ -54,6 +54,28 @@ class ProfileMenuScreen extends StatelessWidget {
             onTap: () => showPaywallSheet(context),
           ),
           ListTile(
+            leading: const Icon(Icons.restore),
+            title: const Text('Restore purchases'),
+            subtitle: const Text(
+              'Already subscribed? Link Premium to this Gains account',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            onTap: () async {
+              final sub = context.read<SubscriptionService>();
+              final ok = await sub.restore();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    ok
+                        ? 'Premium linked to this account'
+                        : (sub.lastError ?? 'No active subscription found for this Apple ID'),
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.person_outline),
             title: const Text('Edit profile'),
             onTap: () => context.push('/profile/edit'),

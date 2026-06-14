@@ -8,6 +8,7 @@ import 'package:gains/features/auth/data/auth_api.dart';
 import 'package:gains/features/auth/data/token_storage.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/profile/data/profile_api.dart';
+import 'package:gains/features/subscription/data/subscription_api.dart';
 import 'package:gains/features/subscription/services/subscription_service.dart';
 import 'package:provider/provider.dart';
 
@@ -26,7 +27,10 @@ Future<void> main() async {
     authApi: AuthApi(apiClient),
     profileApi: ProfileApi(apiClient),
   );
-  final subscriptionService = SubscriptionService(authSession);
+  final subscriptionService = SubscriptionService(
+    authSession,
+    subscriptionApi: SubscriptionApi(apiClient),
+  );
   final bodyUnits = await BodyUnitsPreference.load();
   await authSession.bootstrap();
   await subscriptionService.bootstrap();

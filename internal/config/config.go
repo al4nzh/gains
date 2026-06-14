@@ -70,6 +70,7 @@ type Config struct {
 	AppName          string
 
 	RevenueCatWebhookSecret   string
+	RevenueCatSecretAPIKey    string
 	RevenueCatEntitlementID   string
 }
 
@@ -152,6 +153,7 @@ func Load() (*Config, error) {
 	cfg.AppName = getEnv("APP_NAME", "Gains")
 
 	cfg.RevenueCatWebhookSecret = strings.TrimSpace(os.Getenv("REVENUECAT_WEBHOOK_SECRET"))
+	cfg.RevenueCatSecretAPIKey = strings.TrimSpace(os.Getenv("REVENUECAT_SECRET_API_KEY"))
 	cfg.RevenueCatEntitlementID = getEnv("REVENUECAT_ENTITLEMENT_ID", "premium")
 
 	if err := cfg.validate(); err != nil {

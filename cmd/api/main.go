@@ -165,7 +165,7 @@ func main() {
 	physiqueHandler := physique.NewHandler(physiqueSvc)
 	physiqueHandler.RegisterRoutes(r, requireAppAccess, physiqueLimiter.Middleware())
 
-	subscriptionHandler := subscription.NewHandler(userRepo)
+	subscriptionHandler := subscription.NewHandler(userRepo, subscription.NewRevenueCatClient(cfg.RevenueCatSecretAPIKey, cfg.RevenueCatEntitlementID))
 	subscriptionHandler.RegisterRoutes(r, requireAppAccess)
 	subscription.NewWebhookHandler(userRepo, cfg.RevenueCatWebhookSecret, cfg.RevenueCatEntitlementID).RegisterRoutes(r)
 
