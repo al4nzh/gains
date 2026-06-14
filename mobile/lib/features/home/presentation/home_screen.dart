@@ -23,6 +23,7 @@ import 'package:gains/features/recovery/presentation/widgets/daily_readiness_car
 import 'package:gains/features/recovery/utils/local_checkin_date.dart';
 import 'package:gains/features/shell/shell_tab_auto_refresh.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
+import 'package:gains/features/subscription/services/subscription_service.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -42,12 +43,42 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
   String? _error;
   bool _loading = true;
   bool _readinessDismissedSession = false;
+  bool _wasPremium = false;
+  bool _wasServerPremium = false;
+  SubscriptionService? _subscription;
+  AuthSession? _authSession;
 
   @override
   int get shellTabIndex => ShellTab.home;
 
   @override
   void onShellTabRefresh() => _load(silent: true);
+
+  @override
+  void dispose() {
+    _subscription?.removeListener(_onPremiumChanged);
+    _authSession?.removeListener(_onSessionChanged);
+    super.dispose();
+  }
+
+  void _onSessionChanged() {
+    if (!mounted) return;
+    final serverNow = _authSession?.user?.isPremium ?? false;
+    if (serverNow && !_wasServerPremium) {
+      _wasServerPremium = serverNow;
+      _load(silent: true);
+    }
+    _wasServerPremium = serverNow;
+  }
+
+  void _onPremiumChanged() {
+    if (!mounted) return;
+    final now = _subscription?.isPremium ?? false;
+    if (now != _wasPremium) {
+      _wasPremium = now;
+      if (now) _load(silent: true);
+    }
+  }
 
   HomeApi get homeApi => _homeApi ??= HomeApi(context.read<ApiClient>());
   RecoveryApi get recoveryApi => _recoveryApi ??= RecoveryApi(context.read<ApiClient>());
@@ -66,6 +97,12 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _subscription = context.read<SubscriptionService>();
+      _authSession = context.read<AuthSession>();
+      _wasPremium = _subscription!.isPremium;
+      _wasServerPremium = _authSession!.user?.isPremium ?? false;
+      _subscription!.addListener(_onPremiumChanged);
+      _authSession!.addListener(_onSessionChanged);
       _load();
       _maybeShowGettingStarted();
     });
@@ -218,7 +255,8 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
 
     final data = _data!;
     final showReadiness = _shouldShowReadinessCard;
-    final isPremium = context.select<AuthSession, bool>((s) => s.user?.isPremium ?? false);
+    final isPremium = context.select<SubscriptionService, bool>((s) => s.isPremium);
+    final serverPremium = context.select<AuthSession, bool>((s) => s.user?.isPremium ?? false);
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -238,6 +276,7 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
           GymArchetypeCard(
             archetype: data.gymArchetype!,
             isPremium: isPremium,
+            serverPremium: serverPremium,
             strengthElo: data.strengthElo,
             strengthEloRank: data.strengthEloRank,
           ),

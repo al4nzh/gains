@@ -10,12 +10,14 @@ class GymArchetypeCard extends StatefulWidget {
     super.key,
     required this.archetype,
     required this.isPremium,
+    this.serverPremium = false,
     this.strengthElo,
     this.strengthEloRank,
   });
 
   final GymArchetype archetype;
   final bool isPremium;
+  final bool serverPremium;
   final int? strengthElo;
   final String? strengthEloRank;
 
@@ -76,6 +78,38 @@ class _GymArchetypeCardState extends State<GymArchetypeCard> {
                     TextButton(
                       onPressed: () => showPaywallSheet(context),
                       child: const Text('Upgrade to Premium'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (!widget.serverPremium && !archetype.unlocked) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Gains Identity', style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Activating Premium… pull down to refresh Home in a few seconds.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                     ),
                   ],
                 ),

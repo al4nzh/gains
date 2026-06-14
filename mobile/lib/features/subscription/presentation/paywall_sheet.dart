@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:gains/features/subscription/services/subscription_service.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:provider/provider.dart';
@@ -45,7 +46,11 @@ class _PaywallSheetState extends State<_PaywallSheet> {
     final ok = await context.read<SubscriptionService>().purchase(package);
     if (!mounted) return;
     setState(() => _purchasing = false);
-    if (ok) Navigator.pop(context);
+    if (ok) {
+      context.read<ShellTabRefresh>().bump(ShellTab.home);
+      context.read<ShellTabRefresh>().bump(ShellTab.train);
+      Navigator.pop(context);
+    }
   }
 
   Future<void> _restore() async {
@@ -54,6 +59,8 @@ class _PaywallSheetState extends State<_PaywallSheet> {
     if (!mounted) return;
     setState(() => _purchasing = false);
     if (ok) {
+      context.read<ShellTabRefresh>().bump(ShellTab.home);
+      context.read<ShellTabRefresh>().bump(ShellTab.train);
       Navigator.pop(context);
     } else {
       final err = context.read<SubscriptionService>().lastError;

@@ -120,8 +120,10 @@ class SubscriptionService extends ChangeNotifier {
     try {
       final info = await Purchases.purchasePackage(package);
       _applyCustomerInfo(info);
+      _lastSyncUserId = null;
       await _session.refreshUser();
       notifyListeners();
+      _retryServerPremiumSync();
       return isPremium;
     } on PlatformException catch (e) {
       final code = PurchasesErrorHelper.getErrorCode(e);
@@ -141,8 +143,10 @@ class SubscriptionService extends ChangeNotifier {
     try {
       final info = await Purchases.restorePurchases();
       _applyCustomerInfo(info);
+      _lastSyncUserId = null;
       await _session.refreshUser();
       notifyListeners();
+      _retryServerPremiumSync();
       return isPremium;
     } catch (_) {
       _lastError = 'Could not restore purchases';
@@ -153,6 +157,15 @@ class SubscriptionService extends ChangeNotifier {
 
   void _applyCustomerInfo(CustomerInfo info) {
     _storePremium = info.entitlements.active.containsKey(SubscriptionConfig.entitlementId);
+  }
+
+  /// RevenueCat webhook can lag a few seconds behind the App Store receipt.
+  void _retryServerPremiumSync() {
+    Future<void>.delayed(const Duration(seconds: 3), () async {
+      if (_session.user?.isPremium == true) return;
+      await _session.refreshUser();
+      if (isPremium) notifyListeners();
+    });
   }
 
   @override
