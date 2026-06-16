@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_exception.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/core/utils/support_contact.dart';
+import 'package:gains/core/config/legal_config.dart';
+import 'package:gains/core/widgets/legal_footer.dart';
 import 'package:gains/features/auth/session/auth_session.dart';
 import 'package:gains/features/subscription/presentation/paywall_sheet.dart';
 import 'package:gains/features/subscription/services/subscription_service.dart';
@@ -21,7 +23,7 @@ class ProfileMenuScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Settings'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -98,6 +100,16 @@ class ProfileMenuScreen extends StatelessWidget {
               style: TextStyle(color: AppColors.textSecondary),
             ),
             onTap: () => openSupportContact(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('Terms of Use'),
+            onTap: () => openLegalUrl(context, LegalConfig.termsUrl),
+          ),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Privacy Policy'),
+            onTap: () => openLegalUrl(context, LegalConfig.privacyPolicyUrl),
           ),
           const Divider(height: 1),
           ListTile(

@@ -191,33 +191,16 @@ class _HomeScreenState extends State<HomeScreen> with ShellTabAutoRefresh {
 
   @override
   Widget build(BuildContext context) {
-    final session = context.watch<AuthSession>();
-    final initial = session.user?.email.isNotEmpty == true
-        ? session.user!.email[0].toUpperCase()
-        : '?';
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Home'),
         actions: [
           IconButton(
-            tooltip: 'Profile',
+            tooltip: 'Settings',
             onPressed: () => context.push('/profile'),
-            icon: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.surfaceElevated,
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
+            icon: const Icon(Icons.settings_outlined),
           ),
-          const SizedBox(width: 8),
         ],
       ),
       body: RefreshIndicator(

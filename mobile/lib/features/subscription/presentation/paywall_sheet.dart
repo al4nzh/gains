@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gains/core/theme/app_colors.dart';
+import 'package:gains/core/widgets/legal_footer.dart';
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:gains/features/subscription/services/subscription_service.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
@@ -142,6 +143,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                 onPressed: _purchasing ? null : _restore,
                 child: const Text('Restore purchases'),
               ),
+              const LegalFooter.compact(),
             ],
             const SizedBox(height: 8),
             TextButton(
