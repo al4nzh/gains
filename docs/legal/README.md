@@ -1,24 +1,34 @@
-# Legal pages (Privacy & Terms)
+# Legal pages (Privacy, Terms & Support)
 
 Static pages for App Store compliance. The mobile app links to:
 
 - `https://gainsai.net/privacy`
 - `https://gainsai.net/terms`
+- `https://gainsai.net/support`
 
 ## Deploy on Hetzner (Caddy)
 
 On your VPS, copy this folder to the web root:
 
 ```bash
-# From your laptop (or clone repo on server)
-scp -r docs/legal/* root@YOUR_SERVER:/var/www/gainsai/
+# From your laptop (in the gainsai repo folder)
+scp -r docs/legal/* root@YOUR_HETZNER_IP:/var/www/gainsai/
+```
+
+Or on the server if the repo is already there:
+
+```bash
+sudo mkdir -p /var/www/gainsai
+sudo cp -r /path/to/gainsai/docs/legal/* /var/www/gainsai/
 ```
 
 Expected layout on the server:
 
 ```text
 /var/www/gainsai/
+  index.html
   styles.css
+  support/index.html
   privacy/index.html
   terms/index.html
 ```
@@ -54,15 +64,18 @@ sudo systemctl reload caddy
 ### Verify
 
 ```bash
+curl -sI https://gainsai.net/
+curl -sI https://gainsai.net/support
 curl -sI https://gainsai.net/privacy
 curl -sI https://gainsai.net/terms
 ```
 
-Both should return `200`. Open the URLs on your phone before App Store submit.
+All should return `200`. Open the URLs on your phone before App Store submit.
 
 ## App Store Connect
 
 - **Privacy Policy URL:** `https://gainsai.net/privacy`
+- **Support URL:** `https://gainsai.net/support`
 - Complete the **App Privacy** questionnaire to match data described in `privacy/index.html`
 
 ## Editing
