@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"gainsai/internal/exercisedb"
 )
 
 var exerciseGIFIDPattern = regexp.MustCompile(`^[A-Za-z0-9]{4,24}$`)
@@ -86,14 +88,68 @@ func (p *GIFProxy) serve(c *gin.Context) {
 	_, _ = io.Copy(c.Writer, body)
 }
 
-func (p *GIFProxy) fetchGIF(c *gin.Context, exerciseID string) (io.ReadCloser, string, error) {
-	// 1) Image stream — accepts OSS media ids (EIeI8Vf) used by our catalog.
-	if body, ct, err := p.fetchImageStream(c, exerciseID); err == nil {
+func (p *GIFProxy) fetchGIF(c *gin.Context, mediaID string) (io.ReadCloser, string, error) {
+	var lastErr error
+
+	if body, ct, err := p.fetchImageStream(c, mediaID); err == nil {
 		return body, ct, nil
+	} else {
+		lastErr = err
 	}
 
-	// 2) V1 JSON metadata — uses edb_* ids on the paid API (fallback).
-	return p.fetchViaExerciseMetadata(c, exerciseID)
+	if name := exercisedb.CatalogSearchNameForMediaID(mediaID); name != "" {
+		if body, ct, err := p.fetchViaSearch(c, name); err == nil {
+			return body, ct, nil
+		} else {
+			lastErr = err
+		}
+	}
+
+	if body, ct, err := p.fetchViaExerciseMetadata(c, mediaID); err == nil {
+		return body, ct, nil
+	} else {
+		lastErr = err
+	}
+
+	if lastErr != nil {
+		return nil, "", lastErr
+	}
+	return nil, "", fmt.Errorf("gif not found")
+}
+
+func (p *GIFProxy) fetchViaSearch(c *gin.Context, searchQuery string) (io.ReadCloser, string, error) {
+	searchURL := fmt.Sprintf(
+		"https://%s/api/v1/exercises/search?search=%s",
+		p.cfg.APIHost,
+		url.QueryEscape(strings.TrimSpace(searchQuery)),
+	)
+	body, _, err := p.doGETBytes(c, searchURL, p.cfg.APIHost)
+	if err != nil {
+		return nil, "", fmt.Errorf("rapidapi search: %w", err)
+	}
+
+	var parsed struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			GifURL  string            `json:"gifUrl"`
+			GifURLs map[string]string `json:"gifUrls"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return nil, "", fmt.Errorf("rapidapi search parse failed")
+	}
+	if !parsed.Success || len(parsed.Data) == 0 {
+		return nil, "", fmt.Errorf("rapidapi search: no results for %q", searchQuery)
+	}
+
+	for _, item := range parsed.Data {
+		gifURL := pickGIFURL(item.GifURLs, item.GifURL, p.cfg.Resolution)
+		if gifURL == "" {
+			continue
+		}
+		return p.doGET(c, normalizeAssetGIFURL(gifURL), "")
+	}
+	return nil, "", fmt.Errorf("rapidapi search: no gif url in results")
 }
 
 func (p *GIFProxy) fetchImageStream(c *gin.Context, exerciseID string) (io.ReadCloser, string, error) {
