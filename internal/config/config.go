@@ -65,7 +65,6 @@ type Config struct {
 
 	RapidAPIKey                string
 	RapidAPIExerciseDBHost     string
-	RapidAPIExerciseDBImageURL string
 	RapidAPIExerciseDBGIFRes   string
 
 	SMTPHost         string
@@ -154,8 +153,6 @@ func Load() (*Config, error) {
 
 	cfg.RapidAPIKey = strings.TrimSpace(os.Getenv("RAPIDAPI_KEY"))
 	cfg.RapidAPIExerciseDBHost = getEnv("RAPIDAPI_EXERCISEDB_HOST", "edb-with-gifs-and-images-by-ascendapi.p.rapidapi.com")
-	cfg.RapidAPIExerciseDBImageURL = strings.TrimSpace(os.Getenv("RAPIDAPI_EXERCISEDB_IMAGE_URL"))
-	// Default image URL is set in NewGIFProxy when empty.
 	cfg.RapidAPIExerciseDBGIFRes = getEnv("RAPIDAPI_EXERCISEDB_GIF_RESOLUTION", "180")
 
 	cfg.SMTPHost = strings.TrimSpace(os.Getenv("SMTP_HOST"))

@@ -122,7 +122,6 @@ func main() {
 	media.NewGIFProxy(media.GIFProxyConfig{
 		RapidAPIKey: cfg.RapidAPIKey,
 		APIHost:     cfg.RapidAPIExerciseDBHost,
-		ImageURL:    cfg.RapidAPIExerciseDBImageURL,
 		Resolution:  cfg.RapidAPIExerciseDBGIFRes,
 	}).RegisterRoutes(r, exerciseLimiter.Middleware())
 
