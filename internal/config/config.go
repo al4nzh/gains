@@ -63,6 +63,11 @@ type Config struct {
 
 	PublicAPIURL string
 
+	RapidAPIKey                string
+	RapidAPIExerciseDBHost     string
+	RapidAPIExerciseDBImageURL string
+	RapidAPIExerciseDBGIFRes   string
+
 	SMTPHost         string
 	SMTPPort         string
 	SMTPUser         string
@@ -146,6 +151,11 @@ func Load() (*Config, error) {
 	cfg.ExerciseDBEnabled = parseBool("EXERCISEDB_ENABLED", true)
 	cfg.ExerciseDBBaseURL = getEnv("EXERCISEDB_BASE_URL", "https://oss.exercisedb.dev/api/v1")
 	cfg.PublicAPIURL = strings.TrimRight(strings.TrimSpace(getEnv("PUBLIC_API_URL", "https://api.gainsai.net")), "/")
+
+	cfg.RapidAPIKey = strings.TrimSpace(os.Getenv("RAPIDAPI_KEY"))
+	cfg.RapidAPIExerciseDBHost = getEnv("RAPIDAPI_EXERCISEDB_HOST", "exercisedb.p.rapidapi.com")
+	cfg.RapidAPIExerciseDBImageURL = getEnv("RAPIDAPI_EXERCISEDB_IMAGE_URL", "https://exercisedb.p.rapidapi.com/image")
+	cfg.RapidAPIExerciseDBGIFRes = getEnv("RAPIDAPI_EXERCISEDB_GIF_RESOLUTION", "180")
 
 	cfg.SMTPHost = strings.TrimSpace(os.Getenv("SMTP_HOST"))
 	cfg.SMTPPort = getEnv("SMTP_PORT", "587")

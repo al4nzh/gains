@@ -119,7 +119,12 @@ func main() {
 	exerciseDBGifSvc := exercisedb.NewService(exerciseDBClient, cfg.ExerciseDBEnabled)
 	exerciseHandler := exercise.NewHandler(exerciseRepo, exerciseDBGifSvc, cfg.PublicAPIURL)
 	exerciseHandler.RegisterRoutes(r, requireAppAccess, exerciseLimiter.Middleware())
-	media.NewGIFProxy("https://exercisedb.dev/media").RegisterRoutes(r, exerciseLimiter.Middleware())
+	media.NewGIFProxy(media.GIFProxyConfig{
+		RapidAPIKey:  cfg.RapidAPIKey,
+		ImageURL:     cfg.RapidAPIExerciseDBImageURL,
+		RapidAPIHost: cfg.RapidAPIExerciseDBHost,
+		Resolution:   cfg.RapidAPIExerciseDBGIFRes,
+	}).RegisterRoutes(r, exerciseLimiter.Middleware())
 
 	routineRepo := routine.NewRepository(pool)
 	routineSvc := routine.NewService(routineRepo)
