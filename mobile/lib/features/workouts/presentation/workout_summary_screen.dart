@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gains/core/api/api_client.dart';
 import 'package:gains/core/api/api_exception.dart';
+import 'package:gains/core/share/share_image.dart';
 import 'package:gains/core/theme/app_colors.dart';
 import 'package:gains/core/preferences/body_units_preference.dart';
 import 'package:gains/features/analytics/presentation/analytics_formatters.dart';
@@ -23,7 +24,6 @@ import 'package:gains/features/workouts/presentation/widgets/workout_share_card.
 import 'package:gains/features/shell/shell_tab_refresh.dart';
 import 'package:provider/provider.dart';
 import 'package:screenshot/screenshot.dart';
-import 'package:share_plus/share_plus.dart';
 
 class WorkoutSummaryScreen extends StatefulWidget {
   const WorkoutSummaryScreen({
@@ -213,9 +213,11 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
         delay: const Duration(milliseconds: 100),
         pixelRatio: 3,
       );
-      await Share.shareXFiles(
-        [XFile.fromData(bytes, mimeType: 'image/png', name: 'gains-workout.png')],
+      await sharePngBytes(
+        bytes,
+        fileName: 'gains-workout.png',
         text: 'Workout complete on Gains',
+        sharePositionOrigin: shareOriginFromContext(context),
       );
     } catch (_) {
       if (!mounted) return;

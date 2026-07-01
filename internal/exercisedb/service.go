@@ -48,13 +48,14 @@ func (s *Service) LookupGIFs(ctx context.Context, items []LookupItem) map[string
 			continue
 		}
 		if url, ok := s.cached(item); ok {
-			out[id] = url
+			out[id] = NormalizeGIFURL(url)
 			continue
 		}
 		url, err := s.resolve(ctx, item.Name, item.Equipment)
 		if err != nil || url == "" {
 			continue
 		}
+		url = NormalizeGIFURL(url)
 		s.putCache(item, url)
 		out[id] = url
 	}

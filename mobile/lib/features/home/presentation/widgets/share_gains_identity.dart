@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:gains/core/share/share_image.dart';
 import 'package:gains/core/theme/app_theme.dart';
 import 'package:gains/features/home/presentation/widgets/gains_identity_share_card.dart';
 import 'package:gains/features/profile/models/gym_archetype.dart';
 import 'package:screenshot/screenshot.dart';
-import 'package:share_plus/share_plus.dart';
 
 Future<void> shareGainsIdentity(
   BuildContext context, {
@@ -41,9 +41,11 @@ Future<void> shareGainsIdentity(
       delay: const Duration(milliseconds: 100),
       pixelRatio: 3,
     );
-    await Share.shareXFiles(
-      [XFile.fromData(bytes, mimeType: 'image/png', name: 'gains-identity.png')],
+    await sharePngBytes(
+      bytes,
+      fileName: 'gains-identity.png',
       text: 'My Gains Identity — $primary',
+      sharePositionOrigin: shareOriginFromContext(context),
     );
   } catch (_) {
     if (!context.mounted) return;

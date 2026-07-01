@@ -1,6 +1,6 @@
 package exercisedb
 
-const staticGIFMediaBase = "https://static.exercisedb.dev/media/"
+const staticGIFMediaBase = gifMediaBase
 
 // catalogGifIDs maps normalized Gains catalog exercise names to ExerciseDB exercise ids.
 // Static URLs are used first so GIFs work without downloading the full ExerciseDB index.
