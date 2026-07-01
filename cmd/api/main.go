@@ -22,6 +22,7 @@ import (
 	"gainsai/internal/email"
 	"gainsai/internal/exercise"
 	"gainsai/internal/exercisedb"
+	"gainsai/internal/media"
 	"gainsai/internal/middleware"
 	"gainsai/internal/physique"
 	"gainsai/internal/profile"
@@ -116,8 +117,9 @@ func main() {
 	exerciseRepo := exercise.NewRepository(pool)
 	exerciseDBClient := exercisedb.NewClient(cfg.ExerciseDBBaseURL)
 	exerciseDBGifSvc := exercisedb.NewService(exerciseDBClient, cfg.ExerciseDBEnabled)
-	exerciseHandler := exercise.NewHandler(exerciseRepo, exerciseDBGifSvc)
+	exerciseHandler := exercise.NewHandler(exerciseRepo, exerciseDBGifSvc, cfg.PublicAPIURL)
 	exerciseHandler.RegisterRoutes(r, requireAppAccess, exerciseLimiter.Middleware())
+	media.NewGIFProxy("https://exercisedb.dev/media").RegisterRoutes(r, exerciseLimiter.Middleware())
 
 	routineRepo := routine.NewRepository(pool)
 	routineSvc := routine.NewService(routineRepo)

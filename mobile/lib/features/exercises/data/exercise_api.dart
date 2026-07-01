@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:gains/core/api/api_client.dart';
+import 'package:gains/features/exercises/exercise_gif_url.dart';
 import 'package:gains/features/exercises/models/catalog_exercise.dart';
 
 class ExerciseApi {
@@ -61,7 +62,10 @@ class ExerciseApi {
         data: {'exercise_ids': ids},
       );
       final raw = response.data!['gifs'] as Map<String, dynamic>? ?? {};
-      return raw.map((k, v) => MapEntry(k, v as String));
+      final base = _client.baseUrl;
+      return raw.map(
+        (k, v) => MapEntry(k, resolveExerciseGifUrl(base, v as String)),
+      );
     } on DioException catch (e) {
       ApiClient.throwFromDio(e);
     }

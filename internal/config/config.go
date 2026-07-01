@@ -61,6 +61,8 @@ type Config struct {
 	ExerciseDBEnabled bool
 	ExerciseDBBaseURL string
 
+	PublicAPIURL string
+
 	SMTPHost         string
 	SMTPPort         string
 	SMTPUser         string
@@ -143,6 +145,7 @@ func Load() (*Config, error) {
 
 	cfg.ExerciseDBEnabled = parseBool("EXERCISEDB_ENABLED", true)
 	cfg.ExerciseDBBaseURL = getEnv("EXERCISEDB_BASE_URL", "https://oss.exercisedb.dev/api/v1")
+	cfg.PublicAPIURL = strings.TrimRight(strings.TrimSpace(getEnv("PUBLIC_API_URL", "https://api.gainsai.net")), "/")
 
 	cfg.SMTPHost = strings.TrimSpace(os.Getenv("SMTP_HOST"))
 	cfg.SMTPPort = getEnv("SMTP_PORT", "587")

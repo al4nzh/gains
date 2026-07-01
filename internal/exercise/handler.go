@@ -21,12 +21,13 @@ const (
 )
 
 type Handler struct {
-	repo    *Repository
-	gifSvc  *exercisedb.Service
+	repo          *Repository
+	gifSvc        *exercisedb.Service
+	publicAPIBase string
 }
 
-func NewHandler(repo *Repository, gifSvc *exercisedb.Service) *Handler {
-	return &Handler{repo: repo, gifSvc: gifSvc}
+func NewHandler(repo *Repository, gifSvc *exercisedb.Service, publicAPIBase string) *Handler {
+	return &Handler{repo: repo, gifSvc: gifSvc, publicAPIBase: strings.TrimRight(strings.TrimSpace(publicAPIBase), "/")}
 }
 
 func (h *Handler) RegisterRoutes(r *gin.Engine, requireAuth, limiter gin.HandlerFunc) {
@@ -141,6 +142,11 @@ func (h *Handler) lookupGifs(c *gin.Context) {
 		})
 	}
 	gifs := h.gifSvc.LookupGIFs(c.Request.Context(), items)
+	if h.publicAPIBase != "" {
+		for id, url := range gifs {
+			gifs[id] = exercisedb.ToProxyGIFURL(h.publicAPIBase, url)
+		}
+	}
 	c.JSON(http.StatusOK, gin.H{"gifs": gifs})
 }
 

@@ -22,3 +22,40 @@ func NormalizeGIFURL(raw string) string {
 	}
 	return raw
 }
+
+// ExtractGIFMediaID returns the ExerciseDB media id from a GIF URL, if present.
+func ExtractGIFMediaID(raw string) string {
+	raw = NormalizeGIFURL(raw)
+	const marker = "/media/"
+	i := strings.LastIndex(raw, marker)
+	if i < 0 {
+		return ""
+	}
+	id := strings.TrimSuffix(raw[i+len(marker):], ".gif")
+	id = strings.TrimSpace(id)
+	if id == "" || strings.Contains(id, "/") {
+		return ""
+	}
+	return id
+}
+
+// ProxyGIFURL builds a public API URL that proxies an ExerciseDB GIF.
+func ProxyGIFURL(publicAPIBase, mediaID string) string {
+	publicAPIBase = strings.TrimRight(strings.TrimSpace(publicAPIBase), "/")
+	mediaID = strings.TrimSpace(mediaID)
+	mediaID = strings.TrimSuffix(mediaID, ".gif")
+	if publicAPIBase == "" || mediaID == "" {
+		return ""
+	}
+	return publicAPIBase + "/media/exercise-gifs/" + mediaID + ".gif"
+}
+
+// ToProxyGIFURL normalizes a GIF URL and rewrites it to the API proxy when possible.
+func ToProxyGIFURL(publicAPIBase, raw string) string {
+	if id := ExtractGIFMediaID(raw); id != "" {
+		if proxy := ProxyGIFURL(publicAPIBase, id); proxy != "" {
+			return proxy
+		}
+	}
+	return NormalizeGIFURL(raw)
+}
